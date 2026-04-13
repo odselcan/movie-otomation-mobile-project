@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "381147426045",
+    "project_id": "movie-otomation-mobile-project",
+    "storage_bucket": "movie-otomation-mobile-project.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:381147426045:android:5c27befd1e8cfee9252294",
+        "android_client_info": {
+          "package_name": "com.yourapp.filmapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCUmrVd2ZPODMYeTzXcEoiBGy1hDlJzYMo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

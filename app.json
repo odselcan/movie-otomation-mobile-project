@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "cinema-otomation-mobile-project",
+    "slug": "cinema-otomation-mobile-project",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "cinemaotomationmobileproject",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": false,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.selcan.cinemaotomation"
+    },
+    "android": {
+      "package": "com.selcan.cinemaotomation",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyDyafEJS20me4Bx8kkiwP325RlcMf8ZK4w"
+        }
+      },
+      "adaptiveIcon": {
+        "backgroundColor": "#FFF5F7",
+        "foregroundImage": "./assets/images/android-icon-foreground.png"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 250,
+          "resizeMode": "contain",
+          "backgroundColor": "#FFF5F7"
+        }
+      ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
+      "@react-native-firebase/messaging"
+    ]
+  }
+}
