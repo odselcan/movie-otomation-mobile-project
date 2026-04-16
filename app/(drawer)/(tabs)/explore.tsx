@@ -14,7 +14,7 @@ interface MediaItem {
   trailer: string; mediaType: 'movie' | 'tv';
 }
 
-const API_KEY = '2486490124fea972467ec0b8e6847a5f';
+const API_KEY = process.env.EXPO_PUBLIC_TMDB_API_KEY ?? '2486490124fea972467ec0b8e6847a5f';
 const IMAGE_BASE = 'https://image.tmdb.org/t/p/w500';
 
 const BLOCKED_MOVIE_IDS = new Set([27205, 550, 680, 497, 562, 18491, 11216, 423108, 631842, 361743]);
@@ -22,26 +22,36 @@ const BLOCKED_TV_IDS    = new Set([1396, 1399, 94997, 76479, 60574, 93405, 10008
 const BLOCKED_KEYWORDS  = ['sex', 'sexo', 'erotik', 'erotic', 'nude', 'porn', 'xxx', 'inconnu'];
 
 const MOVIE_GENRES = [
-  { id: 0, label: 'Tümü' }, { id: 28, label: 'Aksiyon' },
-  { id: 35, label: 'Komedi' }, { id: 18, label: 'Dram' },
-  { id: 878, label: 'Bilim Kurgu' }, { id: 27, label: 'Korku' },
-  { id: 16, label: 'Animasyon' }, { id: 53, label: 'Gerilim' },
-  { id: 12, label: 'Macera' }, { id: 14, label: 'Fantastik' },
-  { id: 10751, label: 'Aile' }, { id: 36, label: 'Tarih' },
+  { id: 0,     label: 'Tümü'        },
+  { id: 28,    label: 'Aksiyon'     },
+  { id: 35,    label: 'Komedi'      },
+  { id: 18,    label: 'Dram'        },
+  { id: 878,   label: 'Bilim Kurgu' },
+  { id: 27,    label: 'Korku'       },
+  { id: 16,    label: 'Animasyon'   },
+  { id: 53,    label: 'Gerilim'     },
+  { id: 12,    label: 'Macera'      },
+  { id: 14,    label: 'Fantastik'   },
+  { id: 10751, label: 'Aile'        },
+  { id: 36,    label: 'Tarih'       },
 ];
 
 const TV_GENRES = [
-  { id: 0, label: 'Tümü' }, { id: 10759, label: 'Aksiyon' },
-  { id: 35, label: 'Komedi' }, { id: 18, label: 'Dram' },
-  { id: 10765, label: 'Bilim Kurgu' }, { id: 9648, label: 'Gizem' },
-  { id: 10751, label: 'Aile' }, { id: 16, label: 'Animasyon' },
-  { id: 10762, label: 'Çocuk' },
+  { id: 0,     label: 'Tümü'        },
+  { id: 10759, label: 'Aksiyon'     },
+  { id: 35,    label: 'Komedi'      },
+  { id: 18,    label: 'Dram'        },
+  { id: 10765, label: 'Bilim Kurgu' },
+  { id: 9648,  label: 'Gizem'       },
+  { id: 10751, label: 'Aile'        },
+  { id: 16,    label: 'Animasyon'   },
+  { id: 10762, label: 'Çocuk'       },
 ];
 
 const TABS = [
-  { key: 'toprated', label: 'En İyi',   icon: 'star-outline'     },
-  { key: 'popular',  label: 'Popüler',  icon: 'flame-outline'    },
-  { key: 'upcoming', label: 'Yakında',  icon: 'calendar-outline' },
+  { key: 'toprated', label: 'En İyi',  icon: 'star-outline'     },
+  { key: 'popular',  label: 'Popüler', icon: 'flame-outline'    },
+  { key: 'upcoming', label: 'Yakında', icon: 'calendar-outline' },
 ];
 
 function isSafe(item: any, blocked: Set<number>): boolean {
@@ -99,7 +109,6 @@ export default function ExploreScreen() {
   const blocked = mediaTab === 'movie' ? BLOCKED_MOVIE_IDS : BLOCKED_TV_IDS;
 
   const getEndpoint = (pageNum: number) => {
-    // Discover ile without_genres=10749 (romantik/yetişkin) hariç
     if (selectedGenre > 0) {
       return `discover/${mediaTab}?api_key=${API_KEY}&language=tr-TR&with_genres=${selectedGenre}&without_genres=10749&sort_by=vote_average.desc&vote_count.gte=500&include_adult=false&page=${pageNum}`;
     }
@@ -121,7 +130,6 @@ export default function ExploreScreen() {
       const newItems = (data.results ?? [])
         .filter((i: any) => isSafe(i, blocked))
         .map((i: any) => toMediaItem(i, mediaTab));
-
       setItems(prev => reset ? newItems : [...prev, ...newItems]);
       setHasMore(pageNum < 5);
       setPage(pageNum);
@@ -159,71 +167,148 @@ export default function ExploreScreen() {
   };
 
   const isSearchMode = searchQuery.trim().length > 0;
-  const displayData = isSearchMode ? searchResults : items;
-  const genres = mediaTab === 'movie' ? MOVIE_GENRES : TV_GENRES;
+  const displayData  = isSearchMode ? searchResults : items;
+  const genres       = mediaTab === 'movie' ? MOVIE_GENRES : TV_GENRES;
 
   return (
     <View style={styles.container}>
+
+      {/* ── ARAMA ── */}
       <View style={styles.searchBar}>
         <Ionicons name="search-outline" size={16} color="#DB7093" />
-        <TextInput style={styles.searchInput} placeholder={`${mediaTab === 'movie' ? 'Film' : 'Dizi'} ara...`}
-          placeholderTextColor="#c0a0b0" value={searchQuery} onChangeText={setSearchQuery} />
-        {searchQuery.length > 0 && <Pressable onPress={() => setSearchQuery('')} hitSlop={8}><Ionicons name="close-circle" size={16} color="#DB7093" /></Pressable>}
+        <TextInput
+          style={styles.searchInput}
+          placeholder={`${mediaTab === 'movie' ? 'Film' : 'Dizi'} ara...`}
+          placeholderTextColor="#c0a0b0"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        {searchQuery.length > 0 && (
+          <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
+            <Ionicons name="close-circle" size={16} color="#DB7093" />
+          </Pressable>
+        )}
         {searching && <ActivityIndicator size="small" color="#DB7093" />}
       </View>
 
+      {/* ── FİLM / DİZİ SEÇİCİ ── */}
       <View style={styles.mediaTabRow}>
-        <Pressable style={[styles.mediaTab, mediaTab === 'movie' && styles.mediaTabActive]} onPress={() => { setMediaTab('movie'); setSearchQuery(''); }}>
-          <Ionicons name="film-outline" size={15} color={mediaTab === 'movie' ? 'white' : '#DB7093'} />
-          <Text style={[styles.mediaTabText, mediaTab === 'movie' && styles.mediaTabTextActive]}>Filmler</Text>
+        <Pressable
+          style={[styles.mediaTab, mediaTab === 'movie' && styles.mediaTabActive]}
+          onPress={() => { setMediaTab('movie'); setSearchQuery(''); }}
+        >
+          <Ionicons name="film-outline" size={16} color={mediaTab === 'movie' ? 'white' : '#DB7093'} />
+          <Text style={[styles.mediaTabText, mediaTab === 'movie' && styles.mediaTabTextActive]}>
+            Filmler
+          </Text>
         </Pressable>
-        <Pressable style={[styles.mediaTab, mediaTab === 'tv' && styles.mediaTabActive]} onPress={() => { setMediaTab('tv'); setSearchQuery(''); }}>
-          <Ionicons name="tv-outline" size={15} color={mediaTab === 'tv' ? 'white' : '#DB7093'} />
-          <Text style={[styles.mediaTabText, mediaTab === 'tv' && styles.mediaTabTextActive]}>Diziler</Text>
+        <Pressable
+          style={[styles.mediaTab, mediaTab === 'tv' && styles.mediaTabActive]}
+          onPress={() => { setMediaTab('tv'); setSearchQuery(''); }}
+        >
+          <Ionicons name="tv-outline" size={16} color={mediaTab === 'tv' ? 'white' : '#DB7093'} />
+          <Text style={[styles.mediaTabText, mediaTab === 'tv' && styles.mediaTabTextActive]}>
+            Diziler
+          </Text>
         </Pressable>
       </View>
 
       {!isSearchMode && (
         <>
+          {/* ── SEKMELER ── */}
           <View style={styles.tabRow}>
             {TABS.map((tab) => (
-              <Pressable key={tab.key} style={[styles.tab, activeTab === tab.key && styles.tabActive]} onPress={() => setActiveTab(tab.key)}>
-                <Ionicons name={tab.icon as any} size={13} color={activeTab === tab.key ? 'white' : '#DB7093'} />
-                <Text style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>{tab.label}</Text>
+              <Pressable
+                key={tab.key}
+                style={[styles.tab, activeTab === tab.key && styles.tabActive]}
+                onPress={() => setActiveTab(tab.key)}
+              >
+                <Ionicons
+                  name={tab.icon as any}
+                  size={13}
+                  color={activeTab === tab.key ? 'white' : '#DB7093'}
+                />
+                <Text style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>
+                  {tab.label}
+                </Text>
               </Pressable>
             ))}
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.genreScroll} contentContainerStyle={styles.genreRow}>
+
+          {/* ── TÜR FİLTRESİ ── */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.genreScroll}
+            contentContainerStyle={styles.genreRow}
+          >
             {genres.map((g) => (
-              <Pressable key={g.id} style={[styles.genreChip, selectedGenre === g.id && styles.genreChipActive]} onPress={() => handleGenreSelect(g.id)}>
-                <Text style={[styles.genreText, selectedGenre === g.id && styles.genreTextActive]}>{g.label}</Text>
+              <Pressable
+                key={g.id}
+                style={[styles.genreChip, selectedGenre === g.id && styles.genreChipActive]}
+                onPress={() => handleGenreSelect(g.id)}
+              >
+                <Text style={[styles.genreText, selectedGenre === g.id && styles.genreTextActive]}>
+                  {g.label}
+                </Text>
               </Pressable>
             ))}
           </ScrollView>
         </>
       )}
 
-      {isSearchMode && <Text style={styles.resultCount}>{searchResults.length} sonuç — "{searchQuery}"</Text>}
-      {!isSearchMode && !loading && <Text style={styles.countText}>{items.length} içerik</Text>}
+      {isSearchMode && (
+        <Text style={styles.resultCount}>{searchResults.length} sonuç — "{searchQuery}"</Text>
+      )}
+      {!isSearchMode && !loading && (
+        <Text style={styles.countText}>{items.length} içerik</Text>
+      )}
 
+      {/* ── LİSTE ── */}
       {loading ? (
-        <FlatList data={Array.from({ length: 6 }, (_, i) => i)} numColumns={2}
-          keyExtractor={(i) => `sk-${i}`} renderItem={() => <SkeletonPoster />}
-          scrollEnabled={false} contentContainerStyle={{ paddingTop: 4 }} />
+        <FlatList
+          data={Array.from({ length: 6 }, (_, i) => i)}
+          numColumns={2}
+          keyExtractor={(i) => `sk-${i}`}
+          renderItem={() => <SkeletonPoster />}
+          scrollEnabled={false}
+          contentContainerStyle={{ paddingTop: 8 }}
+        />
       ) : (
         <FlatList
-          data={displayData} numColumns={2}
+          data={displayData}
+          numColumns={2}
           keyExtractor={(item) => `${item.mediaType}-${item.id}`}
           contentContainerStyle={styles.listContent}
           onEndReached={!isSearchMode && hasMore ? () => fetchItems(page + 1) : undefined}
           onEndReachedThreshold={0.4}
-          ListFooterComponent={loadingMore ? <View style={styles.loadingMore}><ActivityIndicator color="#DB7093" /><Text style={styles.loadingMoreText}>Yükleniyor...</Text></View> : null}
-          ListEmptyComponent={<View style={styles.empty}><Text style={styles.emptyIcon}>🔍</Text><Text style={styles.emptyText}>{isSearchMode ? `"${searchQuery}" için sonuç bulunamadı` : 'İçerik bulunamadı'}</Text></View>}
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={styles.loadingMore}>
+                <ActivityIndicator color="#DB7093" />
+                <Text style={styles.loadingMoreText}>Yükleniyor...</Text>
+              </View>
+            ) : null
+          }
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Text style={styles.emptyIcon}>🔍</Text>
+              <Text style={styles.emptyText}>
+                {isSearchMode ? `"${searchQuery}" için sonuç bulunamadı` : 'İçerik bulunamadı'}
+              </Text>
+            </View>
+          }
           renderItem={({ item }) => (
             <Pressable style={styles.card} onPress={() => navigateToDetail(item)}>
               <Image source={{ uri: item.img }} style={styles.poster} />
-              <View style={styles.imdbBadge}><Text style={styles.imdbText}>⭐ {item.imdb}</Text></View>
-              <View style={styles.typeBadge}><Text style={styles.typeText}>{item.mediaType === 'movie' ? '🎬' : '📺'}</Text></View>
+              <View style={styles.imdbBadge}>
+                <Text style={styles.imdbText}>⭐ {item.imdb}</Text>
+              </View>
+              <View style={styles.typeBadge}>
+                <Text style={styles.typeText}>
+                  {item.mediaType === 'movie' ? '🎬' : '📺'}
+                </Text>
+              </View>
               <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
               <Text style={styles.cardYear}>{item.year}</Text>
             </Pressable>
@@ -235,38 +320,50 @@ export default function ExploreScreen() {
 }
 
 const styles = StyleSheet.create({
-  container:          { flex: 1, backgroundColor: '#FFF5F7', paddingHorizontal: 12, paddingTop: 10 },
-  searchBar:          { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'white', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10, elevation: 3, borderWidth: 1, borderColor: '#FFD1DC' },
-  searchInput:        { flex: 1, fontSize: 13, color: '#4A4A4A', padding: 0 },
-  mediaTabRow:        { flexDirection: 'row', gap: 8, marginBottom: 10 },
-  mediaTab:           { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, borderColor: '#FFD1DC', backgroundColor: 'white' },
+  container:          { flex: 1, backgroundColor: '#FFF5F7', paddingHorizontal: 14, paddingTop: 12 },
+
+  // Arama
+  searchBar:          { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'white', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 11, marginBottom: 12, elevation: 3, borderWidth: 1, borderColor: '#FFD1DC' },
+  searchInput:        { flex: 1, fontSize: 14, color: '#4A4A4A', padding: 0 },
+
+  // Film/Dizi seçici
+  mediaTabRow:        { flexDirection: 'row', gap: 10, marginBottom: 12 },
+  mediaTab:           { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 11, borderRadius: 14, borderWidth: 1.5, borderColor: '#FFD1DC', backgroundColor: 'white' },
   mediaTabActive:     { backgroundColor: '#DB7093', borderColor: '#DB7093' },
-  mediaTabText:       { fontSize: 13, fontWeight: '600', color: '#DB7093' },
+  mediaTabText:       { fontSize: 14, fontWeight: '600', color: '#DB7093' },
   mediaTabTextActive: { color: 'white' },
-  tabRow:             { flexDirection: 'row', gap: 6, marginBottom: 10 },
-  tab:                { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: '#FFD1DC', backgroundColor: 'white' },
+
+  // Sekmeler
+  tabRow:             { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  tab:                { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 9, borderRadius: 12, borderWidth: 1, borderColor: '#FFD1DC', backgroundColor: 'white' },
   tabActive:          { backgroundColor: '#DB7093', borderColor: '#DB7093' },
-  tabText:            { fontSize: 11, color: '#DB7093', fontWeight: '600' },
+  tabText:            { fontSize: 12, color: '#DB7093', fontWeight: '600' },
   tabTextActive:      { color: 'white' },
-  genreScroll:        { marginBottom: 10, maxHeight: 38 },
-  genreRow:           { flexDirection: 'row', gap: 6, paddingRight: 8 },
-  genreChip:          { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: 'white', borderWidth: 1, borderColor: '#FFD1DC' },
-  genreChipActive:    { backgroundColor: '#DB7093', borderColor: '#DB7093' },
-  genreText:          { fontSize: 12, color: '#DB7093', fontWeight: '600' },
-  genreTextActive:    { color: 'white' },
-  resultCount:        { fontSize: 12, color: '#a07088', marginBottom: 8, marginLeft: 2 },
-  countText:          { fontSize: 11, color: '#c0a0b0', marginBottom: 6, marginLeft: 2 },
-  listContent:        { paddingBottom: 80, paddingTop: 2 },
+
+  // Tür filtresi
+    genreScroll: { marginBottom: 12 },
+    genreRow:    { flexDirection: 'row', gap: 10, paddingRight: 8, paddingVertical: 6, alignItems: 'center' },
+    genreChip:   { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 22, backgroundColor: 'white', borderWidth: 1.5, borderColor: '#FFD1DC', minHeight: 38, justifyContent: 'center' },
+    genreChipActive: { backgroundColor: '#DB7093', borderColor: '#DB7093' },
+    genreText:   { fontSize: 13, color: '#DB7093', fontWeight: '600' },
+    genreTextActive: { color: 'white' },
+    resultCount:        { fontSize: 12, color: '#a07088', marginBottom: 8 },
+    countText:          { fontSize: 11, color: '#c0a0b0', marginBottom: 8 },
+
+  // Liste
+  listContent:        { paddingBottom: 80, paddingTop: 4 },
   loadingMore:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16 },
   loadingMoreText:    { fontSize: 12, color: '#DB7093' },
   empty:              { alignItems: 'center', justifyContent: 'center', padding: 40, marginTop: 40 },
   emptyIcon:          { fontSize: 48, marginBottom: 12 },
   emptyText:          { fontSize: 14, color: '#c0a0b0', textAlign: 'center' },
-  card:               { flex: 1, margin: 5, backgroundColor: 'white', borderRadius: 16, elevation: 4, overflow: 'hidden' },
+
+  // Kart
+  card:               { flex: 1, margin: 6, backgroundColor: 'white', borderRadius: 18, elevation: 4, overflow: 'hidden' },
   poster:             { width: '100%', height: 200, resizeMode: 'cover', backgroundColor: '#FFE0EB' },
-  cardTitle:          { paddingHorizontal: 8, paddingTop: 7, textAlign: 'center', fontWeight: 'bold', color: '#4A4A4A', fontSize: 12 },
-  cardYear:           { textAlign: 'center', fontSize: 10, color: '#aaa', paddingBottom: 8, paddingTop: 2 },
-  imdbBadge:          { position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(255,255,255,0.92)', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 8 },
+  cardTitle:          { paddingHorizontal: 8, paddingTop: 8, textAlign: 'center', fontWeight: 'bold', color: '#4A4A4A', fontSize: 12 },
+  cardYear:           { textAlign: 'center', fontSize: 10, color: '#aaa', paddingBottom: 8, paddingTop: 3 },
+  imdbBadge:          { position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(255,255,255,0.92)', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
   imdbText:           { color: '#DB7093', fontWeight: 'bold', fontSize: 11 },
   typeBadge:          { position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 8 },
   typeText:           { fontSize: 12 },

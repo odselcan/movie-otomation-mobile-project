@@ -1,15 +1,12 @@
 // app/(drawer)/watchlist.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import * as SMS from 'expo-sms';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-  Alert,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
+  Alert, FlatList, Pressable, StyleSheet, Text,
+  TouchableOpacity, View,
 } from 'react-native';
 
 import MediaCard from '../../components/MediaCard';
@@ -80,8 +77,7 @@ export default function WatchlistScreen() {
       [
         { text: 'İptal', style: 'cancel' },
         {
-          text: 'Kaldır',
-          style: 'destructive',
+          text: 'Kaldır', style: 'destructive',
           onPress: () => {
             remove(item.id);
             if (pageData.length === 1 && currentPage > 0) setCurrentPage(currentPage - 1);
@@ -97,6 +93,43 @@ export default function WatchlistScreen() {
     await upsert({ ...selectedItem, userRating: rating, userNote: note });
     setRatingModal(false);
     setSelectedItem(null);
+  };
+
+  // ── SMS: İzleme listesini gönder ─────────────────────────────
+  const sendWatchlistSMS = async () => {
+    if (items.length === 0) {
+      Alert.alert('Boş Liste', 'İzleme listesi boş.');
+      return;
+    }
+    const available = await SMS.isAvailableAsync();
+    if (!available) {
+      Alert.alert('Hata', 'Bu cihazda SMS gönderilemıyor.');
+      return;
+    }
+
+    const watchedItems   = (items as WatchlistItem[]).filter(i => i.watched);
+    const pendingItems   = (items as WatchlistItem[]).filter(i => !i.watched);
+
+    const formatItem = (item: WatchlistItem, i: number) =>
+      `${i + 1}. ${item.title} (${item.year})${item.userRating > 0 ? ` ⭐${item.userRating}/10` : ''}`;
+
+    let mesaj = `📋 İzleme Listem\n━━━━━━━━━━━━━━━━\n`;
+
+    if (pendingItems.length > 0) {
+      mesaj += `⏳ Bekleyenler (${pendingItems.length}):\n`;
+      mesaj += pendingItems.slice(0, 10).map(formatItem).join('\n');
+      mesaj += '\n\n';
+    }
+
+    if (watchedItems.length > 0) {
+      mesaj += `✅ İzlenenler (${watchedItems.length}):\n`;
+      mesaj += watchedItems.slice(0, 10).map(formatItem).join('\n');
+      mesaj += '\n';
+    }
+
+    mesaj += `━━━━━━━━━━━━━━━━\nToplam: ${items.length} içerik`;
+
+    await SMS.sendSMSAsync([], mesaj);
   };
 
   if (error) {
@@ -125,6 +158,7 @@ export default function WatchlistScreen() {
         <Text style={styles.resultCount}>{filteredSorted.length} sonuç</Text>
       )}
 
+      {/* SORT + FİLTRE + SMS */}
       <View style={styles.controlRow}>
         <View style={styles.sortRow}>
           {SORT_OPTIONS.map((opt) => (
@@ -139,6 +173,8 @@ export default function WatchlistScreen() {
             </Pressable>
           ))}
         </View>
+
+        {/* Bekleyen filtresi */}
         <Pressable
           style={[styles.filterBtn, showPendingOnly && styles.filterBtnActive]}
           onPress={() => { setShowPendingOnly(!showPendingOnly); setCurrentPage(0); }}
@@ -149,12 +185,17 @@ export default function WatchlistScreen() {
             color={showPendingOnly ? 'white' : '#DB7093'}
           />
           <Text style={[styles.filterText, showPendingOnly && styles.filterTextActive]}>
-            Bekleyen ({pendingCount})
+            ({pendingCount})
           </Text>
         </Pressable>
+
+        {/* SMS Butonu */}
+        <TouchableOpacity style={styles.smsBtn} onPress={sendWatchlistSMS}>
+          <Ionicons name="chatbubble-outline" size={15} color="white" />
+          <Text style={styles.smsBtnText}>SMS</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* ── SKELETON LOADING ── */}
       {loading ? (
         <FlatList
           data={Array.from({ length: SKELETON_COUNT }, (_, i) => i)}
@@ -266,6 +307,13 @@ const styles = StyleSheet.create({
   filterBtnActive:  { backgroundColor: '#DB7093', borderColor: '#DB7093' },
   filterText:       { fontSize: 11, color: '#DB7093' },
   filterTextActive: { color: 'white', fontWeight: 'bold' },
+
+  smsBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: '#9b59b6', paddingHorizontal: 12,
+    paddingVertical: 7, borderRadius: 20,
+  },
+  smsBtnText: { color: 'white', fontWeight: 'bold', fontSize: 12 },
 
   watchedWrap: { opacity: 0.65 },
   watchedBtn: {

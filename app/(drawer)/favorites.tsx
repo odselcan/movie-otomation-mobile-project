@@ -1,14 +1,12 @@
 // app/(drawer)/favorites.tsx
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import * as SMS from 'expo-sms';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-  Alert,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
+  Alert, FlatList, Pressable, StyleSheet, Text,
+  TouchableOpacity, View,
 } from 'react-native';
 
 import MediaCard from '../../components/MediaCard';
@@ -62,6 +60,8 @@ export default function FavoritesScreen() {
   const { data: pageData, totalPages, currentPage: safePage } = getPage(filteredSorted, currentPage);
 
   const handlePageChange = (p: number) => setCurrentPage(p);
+  const handleSort       = (key: SortKey) => { setSortKey(key);   setCurrentPage(0); };
+  const handleSearch     = (q: string)    => { setSearchQuery(q); setCurrentPage(0); };
 
   const confirmRemove = (item: MediaItem) => {
     Alert.alert(
@@ -70,8 +70,7 @@ export default function FavoritesScreen() {
       [
         { text: 'İptal', style: 'cancel' },
         {
-          text: 'Kaldır',
-          style: 'destructive',
+          text: 'Kaldır', style: 'destructive',
           onPress: () => {
             remove(item.id);
             if (pageData.length === 1 && currentPage > 0) setCurrentPage(currentPage - 1);
@@ -90,10 +89,35 @@ export default function FavoritesScreen() {
     setSelectedItem(null);
   };
 
-  const handleSort   = (key: SortKey) => { setSortKey(key);    setCurrentPage(0); };
-  const handleSearch = (q: string)    => { setSearchQuery(q);  setCurrentPage(0); };
+  // ── SMS: Tüm favori listesini gönder ─────────────────────────
+  const sendFavoritesSMS = async () => {
+    if (items.length === 0) {
+      Alert.alert('Boş Liste', 'Favorilere eklenmiş içerik yok.');
+      return;
+    }
+    const available = await SMS.isAvailableAsync();
+    if (!available) {
+      Alert.alert('Hata', 'Bu cihazda SMS gönderilemıyor.');
+      return;
+    }
 
-  // ── Hata ekranı ──────────────────────────────────────────────
+    const liste = items
+      .slice(0, 20) // çok uzun olmasın
+      .map((item, i) =>
+        `${i + 1}. ${item.title} (${item.year})${item.userRating > 0 ? ` ⭐${item.userRating}/10` : ''}`
+      )
+      .join('\n');
+
+    const mesaj =
+      `🎬 Favori Film & Dizi Listem\n` +
+      `━━━━━━━━━━━━━━━━\n` +
+      `${liste}\n` +
+      `━━━━━━━━━━━━━━━━\n` +
+      `Toplam: ${items.length} içerik`;
+
+    await SMS.sendSMSAsync([], mesaj);
+  };
+
   if (error) {
     return (
       <View style={styles.centered}>
@@ -118,21 +142,29 @@ export default function FavoritesScreen() {
         <Text style={styles.resultCount}>{filteredSorted.length} sonuç bulundu</Text>
       )}
 
-      <View style={styles.sortRow}>
-        {SORT_OPTIONS.map((opt) => (
-          <Pressable
-            key={opt.key}
-            style={[styles.sortBtn, sortKey === opt.key && styles.sortBtnActive]}
-            onPress={() => handleSort(opt.key)}
-          >
-            <Text style={[styles.sortText, sortKey === opt.key && styles.sortTextActive]}>
-              {opt.label}
-            </Text>
-          </Pressable>
-        ))}
+      {/* SORT + SMS BUTONU */}
+      <View style={styles.topRow}>
+        <View style={styles.sortRow}>
+          {SORT_OPTIONS.map((opt) => (
+            <Pressable
+              key={opt.key}
+              style={[styles.sortBtn, sortKey === opt.key && styles.sortBtnActive]}
+              onPress={() => handleSort(opt.key)}
+            >
+              <Text style={[styles.sortText, sortKey === opt.key && styles.sortTextActive]}>
+                {opt.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {/* SMS Butonu */}
+        <TouchableOpacity style={styles.smsBtn} onPress={sendFavoritesSMS}>
+          <Ionicons name="chatbubble-outline" size={15} color="white" />
+          <Text style={styles.smsBtnText}>SMS</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* ── SKELETON LOADING ── */}
       {loading ? (
         <FlatList
           data={Array.from({ length: SKELETON_COUNT }, (_, i) => i)}
@@ -213,13 +245,20 @@ const styles = StyleSheet.create({
 
   resultCount: { fontSize: 12, color: '#a07088', paddingHorizontal: 16, marginBottom: 4 },
 
-  sortRow: {
-    flexDirection: 'row', paddingHorizontal: 12, paddingBottom: 8, gap: 6, flexWrap: 'wrap',
-  },
-  sortBtn:       { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: '#FFD1DC', backgroundColor: 'white' },
-  sortBtnActive: { backgroundColor: '#DB7093', borderColor: '#DB7093' },
-  sortText:      { fontSize: 12, color: '#DB7093' },
+  topRow:  { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingBottom: 8, gap: 8 },
+  sortRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', flex: 1 },
+
+  sortBtn:        { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: '#FFD1DC', backgroundColor: 'white' },
+  sortBtnActive:  { backgroundColor: '#DB7093', borderColor: '#DB7093' },
+  sortText:       { fontSize: 12, color: '#DB7093' },
   sortTextActive: { color: 'white', fontWeight: 'bold' },
+
+  smsBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: '#9b59b6', paddingHorizontal: 12,
+    paddingVertical: 7, borderRadius: 20,
+  },
+  smsBtnText: { color: 'white', fontWeight: 'bold', fontSize: 12 },
 
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
   emptyIcon:      { fontSize: 56, marginBottom: 16 },

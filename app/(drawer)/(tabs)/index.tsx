@@ -29,7 +29,7 @@ const BLOCKED_IDS = new Set([
 ]);
 
 // Uygunsuz başlık anahtar kelimeleri
-const BLOCKED_KEYWORDS = ['sex', 'sexo', 'erotik', 'erotic', 'nude', 'porn', 'xxx', 'adult', 'inconnu'];
+//const BLOCKED_KEYWORDS = ['sex', 'sexo', 'erotik', 'erotic', 'nude', 'porn', 'xxx', 'adult', 'inconnu'];
 
 const GENRE_MAP: Record<number, string> = {
   28: 'Aksiyon', 12: 'Macera', 16: 'Animasyon', 35: 'Komedi',
@@ -44,7 +44,7 @@ function isSafe(item: any): boolean {
   if (item.vote_count < 500) return false;
   if (BLOCKED_IDS.has(item.id)) return false;
   const title = (item.title ?? item.name ?? '').toLowerCase();
-  if (BLOCKED_KEYWORDS.some(kw => title.includes(kw))) return false;
+  //if (BLOCKED_KEYWORDS.some(kw => title.includes(kw))) return false;
   // 18+ türleri dışla (10749 = Romantik tek başına OK, ama 10749 + 18 = problem)
   if (item.genre_ids?.includes(10749) && item.genre_ids?.length === 1) return false;
   return true;
