@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
-import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
-import Constants from 'expo-constants';
-import { Platform, Alert } from 'react-native';
+// hooks/usePushNotifications.ts
+// Firebase KALDIRILDI — sadece expo-notifications (local notification)
+// Expo Go ile uyumlu ✅
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import messaging from '@react-native-firebase/messaging';
-import type { FirebaseMessagingTypes } from '@react-native-firebase/messaging';
+import * as Notifications from 'expo-notifications';
+import { useEffect, useRef, useState } from 'react';
+import { Alert, Platform } from 'react-native';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -17,29 +17,42 @@ Notifications.setNotificationHandler({
   }),
 });
 
-const PUSH_TOKEN_KEY = '@push_token';
+const STORAGE_KEY = '@bildirimler';
+
+export type BildirimItem = {
+  id: string;
+  title: string;
+  body: string;
+  tarih: string;
+};
 
 export function usePushNotifications() {
-  const [expoPushToken, setExpoPushToken] = useState<string>('');
-  const [fcmToken, setFcmToken] = useState<string>('');
+  const [izinVar, setIzinVar] = useState(false);
   const [notification, setNotification] = useState<Notifications.Notification | null>(null);
+  const [bildirimler, setBildirimler] = useState<BildirimItem[]>([]);
 
   const notificationListener = useRef<Notifications.Subscription | null>(null);
   const responseListener = useRef<Notifications.Subscription | null>(null);
 
   useEffect(() => {
-    registerForPushNotifications().then((token) => {
-      if (token) setExpoPushToken(token);
-    });
+    izinIste();
+    bildirimleriYukle();
 
-    setupFCM();
-
+    // Uygulama açıkken gelen bildirimi yakala
     notificationListener.current = Notifications.addNotificationReceivedListener(
-      (notif: Notifications.Notification) => {
+      async (notif: Notifications.Notification) => {
         setNotification(notif);
+        const yeni: BildirimItem = {
+          id: notif.request.identifier,
+          title: notif.request.content.title ?? 'Bildirim',
+          body: notif.request.content.body ?? '',
+          tarih: new Date().toLocaleString('tr-TR'),
+        };
+        await bildirimEkle(yeni);
       }
     );
 
+    // Bildirime tıklanınca
     responseListener.current = Notifications.addNotificationResponseReceivedListener(
       (response: Notifications.NotificationResponse) => {
         const data = response.notification.request.content.data;
@@ -53,24 +66,22 @@ export function usePushNotifications() {
     };
   }, []);
 
-  async function registerForPushNotifications(): Promise<string | null> {
-    if (!Device.isDevice) {
-      Alert.alert('Fiziksel cihaz gerekli', 'Push bildirimler simülatörde çalışmaz.');
-      return null;
-    }
+  async function izinIste() {
+    const { status: mevcutDurum } = await Notifications.getPermissionsAsync();
+    let sonDurum = mevcutDurum;
 
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-
-    if (existingStatus !== 'granted') {
+    if (mevcutDurum !== 'granted') {
       const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
+      sonDurum = status;
     }
 
-    if (finalStatus !== 'granted') {
-      Alert.alert('İzin reddedildi', 'Push bildirimler için izin gerekli.');
-      return null;
+    if (sonDurum !== 'granted') {
+      Alert.alert('İzin Gerekli', 'Bildirimler için izin verilmedi.');
+      setIzinVar(false);
+      return;
     }
+
+    setIzinVar(true);
 
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('film-onerisi', {
@@ -81,54 +92,62 @@ export function usePushNotifications() {
         sound: 'default',
       });
     }
-
-    const projectId = Constants.expoConfig?.extra?.eas?.projectId;
-    const token = await Notifications.getExpoPushTokenAsync({ projectId });
-    await AsyncStorage.setItem(PUSH_TOKEN_KEY, token.data);
-
-    return token.data;
   }
 
-  async function setupFCM() {
-    const authStatus = await messaging().requestPermission();
-    const enabled =
-      authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-      authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+  async function bildirimleriYukle() {
+    try {
+      const json = await AsyncStorage.getItem(STORAGE_KEY);
+      if (json) setBildirimler(JSON.parse(json));
+    } catch {}
+  }
 
-    if (!enabled) return;
-
-    const token = await messaging().getToken();
-    setFcmToken(token);
-    await AsyncStorage.setItem('@fcm_token', token);
-
-    messaging().onTokenRefresh(async (newToken: string) => {
-      setFcmToken(newToken);
-      await AsyncStorage.setItem('@fcm_token', newToken);
+  async function bildirimEkle(yeni: BildirimItem) {
+    setBildirimler((prev) => {
+      const guncellenmis = [yeni, ...prev];
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(guncellenmis));
+      return guncellenmis;
     });
+  }
 
-    const initialNotification = await messaging().getInitialNotification();
-    if (initialNotification) {
-      handleNotificationTap(initialNotification.data);
+  // Local bildirim gönder
+  async function bildirimGonder(title: string, body: string, data?: Record<string, any>) {
+    if (!izinVar) {
+      Alert.alert('İzin Gerekli', 'Lütfen bildirim iznine izin verin.');
+      return;
     }
-
-    messaging().onNotificationOpenedApp(
-      (remoteMessage: FirebaseMessagingTypes.RemoteMessage) => {
-        handleNotificationTap(remoteMessage.data);
-      }
-    );
-
-    messaging().onMessage(async (remoteMessage: FirebaseMessagingTypes.RemoteMessage) => {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: remoteMessage.notification?.title ?? '🎬 Yeni Öneri',
-          body: remoteMessage.notification?.body ?? '',
-          data: remoteMessage.data ?? {},
-          sound: 'default',
-          color: '#DB7093',
-        },
-        trigger: null,
-      });
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title,
+        body,
+        sound: 'default',
+        data: data ?? {},
+        color: '#DB7093',
+      },
+      trigger: null, // Anında gönder
     });
+  }
+
+  // Gecikmeli bildirim (saniye cinsinden)
+  async function zamanlanmisBildirimGonder(
+    title: string,
+    body: string,
+    saniye: number,
+    data?: Record<string, any>
+  ) {
+    if (!izinVar) return;
+    await Notifications.scheduleNotificationAsync({
+      content: { title, body, sound: 'default', data: data ?? {}, color: '#DB7093' },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: saniye },
+    });
+  }
+
+  async function tumBildirimleriIptalEt() {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+  }
+
+  async function listeyiTemizle() {
+    await AsyncStorage.removeItem(STORAGE_KEY);
+    setBildirimler([]);
   }
 
   function handleNotificationTap(data: Record<string, any> | undefined) {
@@ -136,5 +155,13 @@ export function usePushNotifications() {
     console.log('Bildirime tıklandı, data:', data);
   }
 
-  return { expoPushToken, fcmToken, notification };
+  return {
+    izinVar,
+    notification,
+    bildirimler,
+    bildirimGonder,
+    zamanlanmisBildirimGonder,
+    tumBildirimleriIptalEt,
+    listeyiTemizle,
+  };
 }

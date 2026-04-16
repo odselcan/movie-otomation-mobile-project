@@ -1,18 +1,24 @@
-import React, { useState, useEffect, useRef } from 'react';
-import {
-  View, Text, TouchableOpacity, StyleSheet,
-  ScrollView, Platform, Alert,
-} from 'react-native';
-import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
+import * as SMS from 'expo-sms';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  Alert,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
     shouldPlaySound: true,
-    shouldSetBadge: true, 
-    shouldShowBanner: true, 
+    shouldSetBadge: true,
+    shouldShowBanner: true,
     shouldShowList: true,
   }),
 });
@@ -25,17 +31,20 @@ type BildirimItem = {
 };
 
 const STORAGE_KEY = '@bildirimler';
+const SMS_SCHEDULE_KEY = '@sms_schedule_active';
 
 export default function NotificationsScreen() {
   const [izinVar, setIzinVar] = useState(false);
   const [bildirimler, setBildirimler] = useState<BildirimItem[]>([]);
+  const [smsAktif, setSmsAktif] = useState(false);
   const listenerRef = useRef<Notifications.Subscription | null>(null);
 
   useEffect(() => {
     izinIste();
     bildirimleriYukle();
+    smsAktiflikYukle();
 
-    listenerRef.current = Notifications.addNotificationReceivedListener( // Uygulama açıkken bildirim gelirse yakalar
+    listenerRef.current = Notifications.addNotificationReceivedListener(
       async (notif: Notifications.Notification) => {
         const yeni: BildirimItem = {
           id: notif.request.identifier,
@@ -53,7 +62,6 @@ export default function NotificationsScreen() {
   }, []);
 
   async function izinIste() {
-    if (!Device.isDevice) return;
     const { status } = await Notifications.requestPermissionsAsync();
     setIzinVar(status === 'granted');
 
@@ -71,6 +79,13 @@ export default function NotificationsScreen() {
     try {
       const json = await AsyncStorage.getItem(STORAGE_KEY);
       if (json) setBildirimler(JSON.parse(json));
+    } catch {}
+  }
+
+  async function smsAktiflikYukle() {
+    try {
+      const deger = await AsyncStorage.getItem(SMS_SCHEDULE_KEY);
+      setSmsAktif(deger === 'true');
     } catch {}
   }
 
@@ -98,11 +113,110 @@ export default function NotificationsScreen() {
     setBildirimler([]);
   }
 
+  // ── SMS gönder ────────────────────────────────────────────────
+async function smsSend() {
+  const available = await SMS.isAvailableAsync();
+  if (!available) {
+    Alert.alert('Hata', 'Bu cihazda SMS gönderilemıyor.');
+    return;
+  }
+  const mesaj =
+    '🎬 Film Önerisi!\n\n' +
+    'Bu hafta mutlaka izlemelisin:\n' +
+    '⭐ Interstellar (2014) - IMDb 8.7\n' +
+    '⭐ Oppenheimer (2023) - IMDb 8.3\n' +
+    '⭐ Dune: Part Two (2024) - IMDb 8.5\n\n' +
+    '📱 Film Dünyası uygulamasını aç ve izleme listene ekle!';
+  await SMS.sendSMSAsync([], mesaj);
+}
+  // ── Her gün 20:00 için kalan saniyeyi hesapla ─────────────────
+  function bugunSaat20Saniye(): number {
+    const simdi = new Date();
+    const hedef = new Date();
+    hedef.setHours(20, 0, 0, 0);
+    if (hedef <= simdi) {
+      hedef.setDate(hedef.getDate() + 1);
+    }
+    return Math.floor((hedef.getTime() - simdi.getTime()) / 1000);
+  }
+
+  // ── Zamanlı SMS toggle ────────────────────────────────────────
+  async function smsZamanlaToggle(aktif: boolean) {
+    setSmsAktif(aktif);
+    await AsyncStorage.setItem(SMS_SCHEDULE_KEY, aktif.toString());
+
+    if (aktif) {
+      const saniye = bugunSaat20Saniye();
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '🎬 Akşam Film Vakti!',
+          body: 'Bu akşam izleyecek film seçtin mi? SMS gönder ve arkadaşlarını davet et!',
+          sound: 'default',
+          data: { tip: 'aksam_hatirlat' },
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          seconds: saniye,
+          repeats: false,
+        },
+      });
+
+      const saatStr = new Date(Date.now() + saniye * 1000).toLocaleTimeString('tr-TR', {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      Alert.alert(
+        '✅ Zamanlı SMS Aktif',
+        `Her gün saat 20:00'de hatırlatıcı gelecek.\nBugün: ${saatStr}'de bildirim alacaksınız.`
+      );
+    } else {
+      await Notifications.cancelAllScheduledNotificationsAsync();
+      Alert.alert('❌ Zamanlı SMS İptal', 'Günlük hatırlatıcı kapatıldı.');
+    }
+  }
+
+  // ── TEST: Anında bildirim + SMS ───────────────────────────────
+  async function testSmsBildirim() {
+    await anlikBildirimGonder(
+      '🎬 Akşam Film Vakti!',
+      'Bu akşam izleyecek film seçtin mi?'
+    );
+    await smsSend();
+  }
+
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.baslik}>🔔 Bildirimler</Text>
 
-      {/* Butonlar */}
+      {/* İzin durumu */}
+      <View style={[styles.izinBadge, { backgroundColor: izinVar ? '#d4edda' : '#f8d7da' }]}>
+        <Text style={{ color: izinVar ? '#155724' : '#721c24', fontSize: 13, fontWeight: '600' }}>
+          {izinVar ? '✅ Bildirim izni verildi' : '❌ Bildirim izni yok'}
+        </Text>
+      </View>
+
+      {/* ── Zamanlı SMS Kartı ── */}
+      <View style={styles.smsKart}>
+        <View style={styles.smsKartUst}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.smsKartBaslik}>📅 Günlük SMS Hatırlatıcı</Text>
+            <Text style={styles.smsKartAlt}>Her gün saat 20:00'de SMS gönderir</Text>
+          </View>
+          <Switch
+            value={smsAktif}
+            onValueChange={smsZamanlaToggle}
+            trackColor={{ false: '#FFD1DC', true: '#DB7093' }}
+            thumbColor={smsAktif ? '#fff' : '#f4f3f4'}
+          />
+        </View>
+
+        {/* TEST Butonu */}
+        <TouchableOpacity style={styles.testButon} onPress={testSmsBildirim}>
+          <Text style={styles.testButonYazi}>🧪 Hemen Test Et (Bildirim + SMS)</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Diğer bildirim butonları */}
       <TouchableOpacity
         style={styles.buton}
         onPress={() =>
@@ -130,7 +244,7 @@ export default function NotificationsScreen() {
         <Text style={styles.butonYazi}>⭐ Yeni Çıkan Film Bildirimi</Text>
       </TouchableOpacity>
 
-      {/* Liste başlığı */}
+      {/* Geçmiş listesi */}
       <View style={styles.listeBaslikRow}>
         <Text style={styles.listeBaslik}>
           📋 Geçmiş Bildirimler ({bildirimler.length})
@@ -142,7 +256,6 @@ export default function NotificationsScreen() {
         )}
       </View>
 
-      {/* Bildirim listesi */}
       {bildirimler.length === 0 ? (
         <View style={styles.bosKutu}>
           <Text style={styles.bosYazi}>Henüz bildirim yok</Text>
@@ -163,7 +276,33 @@ export default function NotificationsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF5F7', padding: 20 },
-  baslik: { fontSize: 24, fontWeight: '700', color: '#DB7093', marginBottom: 20 },
+  baslik: { fontSize: 24, fontWeight: '700', color: '#DB7093', marginBottom: 12 },
+  izinBadge: {
+    borderRadius: 10, padding: 10, marginBottom: 16, alignItems: 'center',
+  },
+  smsKart: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1.5,
+    borderColor: '#FFD1DC',
+    elevation: 2,
+  },
+  smsKartUst: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  smsKartBaslik: { fontSize: 15, fontWeight: '700', color: '#4A2030' },
+  smsKartAlt: { fontSize: 12, color: '#B07090', marginTop: 2 },
+  testButon: {
+    backgroundColor: '#9b59b6',
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
+  },
+  testButonYazi: { color: '#fff', fontWeight: '600', fontSize: 14 },
   buton: {
     backgroundColor: '#DB7093',
     borderRadius: 14,
