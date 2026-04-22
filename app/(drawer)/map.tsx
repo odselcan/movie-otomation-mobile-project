@@ -1,38 +1,37 @@
 // app/(drawer)/map.tsx
-//
-// YENİ EKLENENLER:
-// 📞 Ara        → expo-linking ile tel: URL (Linking.openURL)
-// 👥 Rehbere Ekle → expo-contacts ile kişi kaydet
-// 💬 SMS Gönder  → expo-sms ile hazır mesaj
+// Ara    → expo-linking ile tel: URL (Linking.openURL)
+// Rehbere Ekle → expo-contacts ile kişi kaydet
+// SMS Gönder  → expo-sms ile hazır mesaj
 
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Contacts from 'expo-contacts';
+import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import * as SMS from 'expo-sms';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Linking,
-    Modal,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import MapView, {
-    Callout,
-    Circle,
-    MapType,
-    Marker,
-    Polyline,
-    PROVIDER_GOOGLE,
-    Region,
+  Callout,
+  Circle,
+  MapType,
+  Marker,
+  Polyline,
+  PROVIDER_GOOGLE,
+  Region,
 } from 'react-native-maps';
 
 // ─── Tipler ───────────────────────────────────────────────────────────────────
@@ -161,6 +160,7 @@ const ISTANBUL_REGION: Region = {
 
 const FAV_KEY = 'favorite_cinemas';
 
+// ─── Pure helper — component dışında ─────────────────────────────────────────
 function getDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -173,21 +173,22 @@ function getDistance(lat1: number, lng1: number, lat2: number, lng2: number): nu
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// ─── Ana Bileşen ──────────────────────────────────────────────────────────────
+// ─── Component ────────────────────────────────────────────────────────────────
 export default function MapScreen() {
   const router = useRouter();
   const mapRef = useRef<MapView>(null);
 
-  const [mapLoading, setMapLoading]         = useState(true);
-  const [mapType, setMapType]               = useState<MapType>('standard');
-  const [mapTypeModal, setMapTypeModal]     = useState(false);
-  const [selectedCinema, setSelectedCinema] = useState<Cinema | null>(null);
-  const [favIds, setFavIds]                 = useState<string[]>([]);
-  const [searchQuery, setSearchQuery]       = useState('');
-  const [activeTypes, setActiveTypes]       = useState<string[]>([]);
-  const [showFilters, setShowFilters]       = useState(false);
-  const [userLocation, setUserLocation]     = useState<{ lat: number; lng: number } | null>(null);
-  const [showTip, setShowTip]               = useState(true);
+  const [mapLoading, setMapLoading]           = useState(true);
+  const [mapType, setMapType]                 = useState<MapType>('standard');
+  const [mapTypeModal, setMapTypeModal]       = useState(false);
+  const [selectedCinema, setSelectedCinema]   = useState<Cinema | null>(null);
+  const [favIds, setFavIds]                   = useState<string[]>([]);
+  const [searchQuery, setSearchQuery]         = useState('');
+  const [activeTypes, setActiveTypes]         = useState<string[]>([]);
+  const [showFilters, setShowFilters]         = useState(false);
+  const [userLocation, setUserLocation]       = useState<{ lat: number; lng: number } | null>(null);
+  const [showTip, setShowTip]                 = useState(true);
+  const [locationLoading, setLocationLoading] = useState(false); // ✅ YENİ
 
   useFocusEffect(
     useCallback(() => {
@@ -241,7 +242,6 @@ export default function MapScreen() {
     );
   };
 
-  // ── 📞 Ara — expo-linking ──────────────────────────────────────────────────
   const handleCall = (cinema: Cinema) => {
     const url = `tel:${cinema.phone}`;
     Linking.canOpenURL(url).then((supported) => {
@@ -253,34 +253,21 @@ export default function MapScreen() {
     });
   };
 
-  // ── 👥 Rehbere Ekle — expo-contacts ───────────────────────────────────────
   const handleAddContact = async (cinema: Cinema) => {
     const { status } = await Contacts.requestPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('İzin Gerekli', 'Rehbere eklemek için izin vermeniz gerekiyor.');
       return;
     }
-
     try {
       const contact: Contacts.Contact = {
         contactType: Contacts.ContactTypes.Company,
         name: cinema.title,
         company: cinema.title,
-        phoneNumbers: [
-          {
-            number: cinema.phone,
-            label: 'work',
-          },
-        ],
-        addresses: [
-          {
-            street: cinema.address,
-            label: 'work',
-          },
-        ],
+        phoneNumbers: [{ number: cinema.phone, label: 'work' }],
+        addresses: [{ street: cinema.address, label: 'work' }],
         note: `${cinema.type} | ${cinema.price} | Puan: ${cinema.rating}`,
       };
-
       await Contacts.addContactAsync(contact);
       Alert.alert('✅ Başarılı', `"${cinema.title}" rehbere eklendi!`);
     } catch (e) {
@@ -288,14 +275,12 @@ export default function MapScreen() {
     }
   };
 
-  // ── 💬 SMS Gönder — expo-sms ──────────────────────────────────────────────
   const handleSMS = async (cinema: Cinema) => {
     const isAvailable = await SMS.isAvailableAsync();
     if (!isAvailable) {
-      Alert.alert('Hata', 'Bu cihazda SMS gönderilemıyor.');
+      Alert.alert('Hata', 'Bu cihazda SMS gönderilemiyor.');
       return;
     }
-
     const message =
       `🎬 ${cinema.title} sinemasına gidiyorum!\n` +
       `📍 ${cinema.address}\n` +
@@ -303,14 +288,65 @@ export default function MapScreen() {
       `⭐ Puan: ${cinema.rating}\n` +
       `🎞️ Gösterimde: ${cinema.nowPlaying[0]}\n` +
       `📞 İletişim: ${cinema.phone}`;
-
     await SMS.sendSMSAsync([], message);
+  };
+
+  // ✅ YENİ — En Yakın Sinema (component içinde, tüm state'lere erişebilir)
+  const handleGetLocation = async () => {
+    setLocationLoading(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('İzin Gerekli', 'Konum izni verilmedi.');
+        return;
+      }
+
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const { latitude, longitude } = loc.coords;
+
+      // Circle + Polyline için state güncelle
+      setUserLocation({ lat: latitude, lng: longitude });
+
+      // En yakın sinemayı bul (yerel değişkenle — state güncellenmesini bekleme)
+      let minDist = Infinity;
+      let nearest = CINEMAS[0];
+      for (const cinema of CINEMAS) {
+        const dist = getDistance(latitude, longitude, cinema.lat, cinema.lng);
+        if (dist < minDist) {
+          minDist = dist;
+          nearest = cinema;
+        }
+      }
+
+      // Seç ve haritayı oraya animasyonla götür
+      setSelectedCinema(nearest);
+      mapRef.current?.animateToRegion(
+        {
+          latitude: nearest.lat,
+          longitude: nearest.lng,
+          latitudeDelta: 0.04,
+          longitudeDelta: 0.04,
+        },
+        800
+      );
+
+      Alert.alert(
+        '📍 En Yakın Sinema',
+        `${nearest.title}\n(${minDist.toFixed(1)} km uzakta)`,
+        [{ text: 'Tamam' }]
+      );
+    } catch (e) {
+      Alert.alert('Hata', 'Konum alınamadı.');
+    } finally {
+      setLocationLoading(false);
+    }
   };
 
   const currentMapTypeOption = MAP_TYPES.find((m) => m.value === mapType)!;
   const uniqueTypes = Array.from(new Set(CINEMAS.map((c) => c.type)));
 
-  // ─── RENDER ──────────────────────────────────────────────────────────────
   return (
     <View style={styles.container}>
 
@@ -469,12 +505,27 @@ export default function MapScreen() {
 
       {/* FAB Grubu */}
       <View style={styles.fabGroup}>
+        {/* Harita türü */}
         <TouchableOpacity style={styles.fab} onPress={() => setMapTypeModal(true)}>
           <Text style={styles.fabEmoji}>{currentMapTypeOption.emoji}</Text>
           <Text style={styles.fabLabel}>{currentMapTypeOption.label}</Text>
         </TouchableOpacity>
+
+        {/* Sıfırla */}
         <TouchableOpacity style={styles.fabIcon} onPress={resetMap}>
           <Ionicons name="refresh-outline" size={22} color="#DB7093" />
+        </TouchableOpacity>
+
+        {/* ✅ YENİ — En Yakın Sinema */}
+        <TouchableOpacity
+          style={[styles.fabIcon, locationLoading && { opacity: 0.5 }]}
+          onPress={handleGetLocation}
+          disabled={locationLoading}
+        >
+          {locationLoading
+            ? <ActivityIndicator size="small" color="#DB7093" />
+            : <Ionicons name="navigate-outline" size={22} color="#DB7093" />
+          }
         </TouchableOpacity>
       </View>
 
@@ -572,9 +623,8 @@ export default function MapScreen() {
                     </View>
                   </ScrollView>
 
-                  {/* ── YENİ: 3 Aksiyon Butonu ── */}
+                  {/* ── 3 Aksiyon Butonu ── */}
                   <View style={styles.actionRow}>
-                    {/* 📞 Ara */}
                     <TouchableOpacity
                       style={[styles.actionBtn, { backgroundColor: '#2ecc71' }]}
                       onPress={() => handleCall(selectedCinema)}
@@ -583,7 +633,6 @@ export default function MapScreen() {
                       <Text style={styles.actionBtnText}>Ara</Text>
                     </TouchableOpacity>
 
-                    {/* 👥 Rehbere Ekle */}
                     <TouchableOpacity
                       style={[styles.actionBtn, { backgroundColor: '#3498db' }]}
                       onPress={() => handleAddContact(selectedCinema)}
@@ -592,7 +641,6 @@ export default function MapScreen() {
                       <Text style={styles.actionBtnText}>Rehber</Text>
                     </TouchableOpacity>
 
-                    {/* 💬 SMS */}
                     <TouchableOpacity
                       style={[styles.actionBtn, { backgroundColor: '#9b59b6' }]}
                       onPress={() => handleSMS(selectedCinema)}
@@ -602,7 +650,7 @@ export default function MapScreen() {
                     </TouchableOpacity>
                   </View>
 
-                  {/* Bilet Al */}
+                  {/* Bilet Al / Kapat */}
                   <View style={styles.sheetButtons}>
                     <TouchableOpacity
                       style={[styles.sheetBtn, styles.sheetBtnSecondary]}
@@ -782,17 +830,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#DB7093', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20,
   },
   filmChipText: { color: 'white', fontSize: 11, fontWeight: '600' },
-
-  // ── YENİ: Aksiyon butonları ──
-  actionRow: {
-    flexDirection: 'row', gap: 8, marginBottom: 12,
-  },
+  actionRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   actionBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 5, paddingVertical: 10, borderRadius: 12,
   },
   actionBtnText: { color: 'white', fontWeight: 'bold', fontSize: 13 },
-
   sheetButtons: { flexDirection: 'row', gap: 10 },
   sheetBtn: {
     flex: 1, paddingVertical: 13, borderRadius: 14,

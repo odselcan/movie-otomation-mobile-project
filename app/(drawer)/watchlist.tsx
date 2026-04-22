@@ -95,7 +95,7 @@ export default function WatchlistScreen() {
     setSelectedItem(null);
   };
 
-  // ── SMS: İzleme listesini gönder ─────────────────────────────
+  // SMS
   const sendWatchlistSMS = async () => {
     if (items.length === 0) {
       Alert.alert('Boş Liste', 'İzleme listesi boş.');
