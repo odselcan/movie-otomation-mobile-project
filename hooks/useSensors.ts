@@ -1,10 +1,8 @@
-// hooks/useSensors.ts
-// ✅ 4 Sensör:
-//   1. Accelerometer  — sallama algılama
-//   2. expo-location  — GPS konum, hız, yön, irtifa
-//   3. expo-brightness — ekran parlaklığı (sinema modu toggle)
-//   4. expo-battery   — batarya seviyesi & şarj durumu
-//   5. expo-network   — ağ tipi & bağlantı durumu (NetworkBanner'da kullanılıyor)
+//    Accelerometer  — sallama algılama
+//    expo-location  — GPS konum, hız, yön, irtifa
+//    expo-brightness — ekran parlaklığı (sinema modu toggle)
+//    expo-battery   — batarya seviyesi & şarj durumu
+//    expo-network   — ağ tipi & bağlantı durumu 
 
 import * as Battery from 'expo-battery';
 import * as Brightness from 'expo-brightness';
@@ -13,9 +11,6 @@ import * as Network from 'expo-network';
 import { Accelerometer } from 'expo-sensors';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-// ─────────────────────────────────────────────────────────────
-// 1. Accelerometer — sallama algılama
-// ─────────────────────────────────────────────────────────────
 export function useShakeDetector(onShake: () => void, threshold = 1.8) {
   const lastShake = useRef(0);
 
@@ -33,16 +28,13 @@ export function useShakeDetector(onShake: () => void, threshold = 1.8) {
   }, [onShake, threshold]);
 }
 
-// ─────────────────────────────────────────────────────────────
-// 2. expo-location — GPS konum, hız, yön, irtifa
-// ─────────────────────────────────────────────────────────────
 export interface UserLocation {
   lat: number;
   lng: number;
-  altitude: number | null;   // irtifa (metre)
-  speed: number | null;      // hız (m/s)
-  heading: number | null;    // yön (derece, 0=kuzey)
-  accuracy: number | null;   // doğruluk (metre)
+  altitude: number | null;   
+  speed: number | null;      
+  heading: number | null;    
+  accuracy: number | null;   
 }
 
 export function useUserLocation() {
@@ -80,9 +72,6 @@ export function useUserLocation() {
   return { location, locationError, locationLoading, getLocation };
 }
 
-// ─────────────────────────────────────────────────────────────
-// 3. expo-brightness — sinema / normal mod toggle
-// ─────────────────────────────────────────────────────────────
 export function useBrightness() {
   const [isCinemaMode, setIsCinemaMode] = useState(false);
 
@@ -103,16 +92,12 @@ export function useBrightness() {
   return { isCinemaMode, toggleCinemaMode };
 }
 
-// ─────────────────────────────────────────────────────────────
-// 4. expo-battery — batarya seviyesi & şarj durumu
-// ─────────────────────────────────────────────────────────────
 export interface BatteryInfo {
   level: number;           // 0.0 – 1.0
   percentage: number;      // 0 – 100
   isCharging: boolean;
   state: string;           // 'Charging' | 'Discharging' | 'Full' | 'Unknown'
 }
-
 export function useBattery() {
   const [battery, setBattery] = useState<BatteryInfo | null>(null);
 
@@ -126,12 +111,12 @@ export function useBattery() {
         const state = await Battery.getBatteryStateAsync();
         updateBattery(level, state);
 
-        // Şarj durumu değişince güncelle
+       
         chargeSub = Battery.addBatteryStateListener(({ batteryState }) => {
           Battery.getBatteryLevelAsync().then((lvl) => updateBattery(lvl, batteryState));
         });
 
-        // Seviye değişince güncelle
+        
         levelSub = Battery.addBatteryLevelListener(({ batteryLevel }) => {
           Battery.getBatteryStateAsync().then((st) => updateBattery(batteryLevel, st));
         });
@@ -165,9 +150,7 @@ export function useBattery() {
   return { battery };
 }
 
-// ─────────────────────────────────────────────────────────────
-// 5. expo-network — ağ tipi & bağlantı durumu
-// ─────────────────────────────────────────────────────────────
+
 export function useNetworkStatus() {
   const [isConnected, setIsConnected] = useState(true);
   const [networkType, setNetworkType] = useState<string>('Bilinmiyor');

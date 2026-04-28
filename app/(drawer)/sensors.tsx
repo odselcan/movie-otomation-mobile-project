@@ -1,5 +1,4 @@
-// app/(drawer)/sensors.tsx
-// Sensör verileri ekranı — Accelerometer, GPS, Brightness, Battery, Network
+//  Accelerometer, GPS, Brightness, Battery, Network
 
 import { Ionicons } from '@expo/vector-icons';
 import { Accelerometer } from 'expo-sensors';
