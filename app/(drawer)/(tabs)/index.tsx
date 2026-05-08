@@ -20,7 +20,7 @@ interface Movie {
 
 const API_KEY = process.env.EXPO_PUBLIC_TMDB_API_KEY ?? '';
 const IMAGE_BASE = 'https://image.tmdb.org/t/p/w500';
-const STORAGE_KEY = 'movies_data_v5';
+const STORAGE_KEY = 'movies_data_v7';
 
 const BLOCKED_IDS = new Set([
   27205, 550, 680, 497, 562, 18491, 11216,
@@ -37,8 +37,8 @@ const GENRE_MAP: Record<number, string> = {
 function isSafe(item: any): boolean {
   if (item.adult) return false;
   if (!item.poster_path) return false;
-  if (item.vote_average < 6.5) return false;
-  if (item.vote_count < 500) return false;
+  if (item.vote_average < 7.0) return false;
+  if (item.vote_count < 1000) return false;
   if (BLOCKED_IDS.has(item.id)) return false;
   if (item.genre_ids?.includes(10749) && item.genre_ids?.length === 1) return false;
   return true;
@@ -77,14 +77,14 @@ export default function MoviesScreen() {
     title: '', img: '', trailer: '', imdb: '', type: '', year: '',
   });
 
-  // ── Shake & Film Öneri Modal ──────────────────────────────────
-  const [shakeModal, setShakeModal]         = useState(false);
-  const [suggestedFilm, setSuggestedFilm]   = useState<Movie | null>(null);
-  const lastShakeTime                       = useRef(0);
-  const scaleAnim                           = useRef(new Animated.Value(0)).current;
-  const shakeHint                           = useRef(new Animated.Value(1)).current;
+  // Shake & Film Öneri Modal
+  const [shakeModal, setShakeModal]       = useState(false);
+  const [suggestedFilm, setSuggestedFilm] = useState<Movie | null>(null);
+  const lastShakeTime                     = useRef(0);
+  const scaleAnim                         = useRef(new Animated.Value(0)).current;
+  const shakeHint                         = useRef(new Animated.Value(1)).current;
 
-  // Shake hint animasyonu — salla ikonunu titret
+  // Shake hint animasyonu
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
@@ -113,8 +113,6 @@ export default function MoviesScreen() {
     const random = movies[Math.floor(Math.random() * movies.length)];
     setSuggestedFilm(random);
     setShakeModal(true);
-
-    // Modal açılış animasyonu
     scaleAnim.setValue(0);
     Animated.spring(scaleAnim, {
       toValue: 1, useNativeDriver: true,
@@ -134,7 +132,8 @@ export default function MoviesScreen() {
     setLoading(true);
     try {
       const cached = await AsyncStorage.getItem(STORAGE_KEY);
-      if (cached) { setMovies(JSON.parse(cached)); setLoading(false); return; }
+      const parsed = cached ? JSON.parse(cached) : null;
+      if (parsed && parsed.length > 0) { setMovies(parsed); setLoading(false); return; }
       await fetchPage(1, true);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
@@ -145,9 +144,11 @@ export default function MoviesScreen() {
     try {
       const [r1, r2] = await Promise.all([
         fetch(`https://api.themoviedb.org/3/movie/top_rated?api_key=${API_KEY}&language=tr-TR&region=US&page=${pageNum}`),
-        fetch(`https://api.themoviedb.org/3/movie/now_playing?api_key=${API_KEY}&language=tr-TR&region=US&page=${pageNum}`),
+        fetch(`https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&language=tr-TR&sort_by=vote_average.desc&vote_count.gte=5000&without_genres=10749&include_adult=false&page=${pageNum}`),
       ]);
       const [d1, d2] = await Promise.all([r1.json(), r2.json()]);
+      console.log('API KEY:', API_KEY);
+      console.log('TMDB d1:', d1?.results?.length, 'd2:', d2?.results?.length);
       const seen = new Set<number>();
       const all = [...(d1.results ?? []), ...(d2.results ?? [])].filter(i => {
         if (seen.has(i.id)) return false;
@@ -198,12 +199,17 @@ export default function MoviesScreen() {
   return (
     <View style={styles.container}>
 
-      {/* ── Arama + Shake Butonu ── */}
+      {/* Arama + Shake Butonu */}
       <View style={styles.topRow}>
         <View style={styles.searchBar}>
           <Ionicons name="search-outline" size={16} color="#DB7093" />
-          <TextInput style={styles.searchInput} placeholder="Film ara..." placeholderTextColor="#c0a0b0"
-            value={searchQuery} onChangeText={setSearchQuery} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Film ara..."
+            placeholderTextColor="#c0a0b0"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
           {searchQuery.length > 0 && (
             <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
               <Ionicons name="close-circle" size={16} color="#DB7093" />
@@ -229,47 +235,72 @@ export default function MoviesScreen() {
       {!isSearchMode && !loading && <Text style={styles.countText}>{movies.length} film</Text>}
 
       {loading ? (
-        <FlatList data={Array.from({ length: 6 }, (_, i) => i)} numColumns={2}
-          keyExtractor={(i) => `sk-${i}`} renderItem={() => <SkeletonPoster />}
-          scrollEnabled={false} contentContainerStyle={{ paddingTop: 4 }} />
+        <FlatList
+          data={Array.from({ length: 6 }, (_, i) => i)}
+          numColumns={2}
+          keyExtractor={(i) => `sk-${i}`}
+          renderItem={() => <SkeletonPoster />}
+          scrollEnabled={false}
+          contentContainerStyle={{ paddingTop: 4 }}
+        />
       ) : (
         <FlatList
-          data={displayData} numColumns={2} keyExtractor={(item) => item.id}
+          data={displayData}
+          numColumns={2}
+          keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           onEndReached={!isSearchMode && hasMore ? () => fetchPage(page + 1) : undefined}
           onEndReachedThreshold={0.4}
-          ListFooterComponent={loadingMore ? <View style={styles.loadingMore}><ActivityIndicator color="#DB7093" /><Text style={styles.loadingMoreText}>Yükleniyor...</Text></View> : null}
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={styles.loadingMore}>
+                <ActivityIndicator color="#DB7093" />
+                <Text style={styles.loadingMoreText}>Yükleniyor...</Text>
+              </View>
+            ) : null
+          }
           renderItem={({ item }) => (
             <View style={styles.card}>
               <Pressable onPress={() => router.push({
                 pathname: '/details/[id]',
-                params: { id: item.id, title: item.title, trailer: item.trailer, year: item.year, type: item.type, img: item.img, mediaType: 'movie' }
+                params: {
+                  id: item.id, title: item.title, trailer: item.trailer,
+                  year: item.year, type: item.type, img: item.img, mediaType: 'movie',
+                },
               })}>
                 <Image source={{ uri: item.img }} style={styles.poster} />
-                <View style={styles.imdbBadge}><Text style={styles.imdbText}>⭐ {item.imdb}</Text></View>
-                <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
+                <View style={styles.imdbBadge}>
+                  <Text style={styles.imdbText}>⭐ {item.imdb}</Text>
+                </View>
+                <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
               </Pressable>
-              {!isSearchMode && (
-                <Pressable style={styles.editBtn} onPress={() => { setEditingItem(item); setForm(item); setModalVisible(true); }}>
-                  <Ionicons name="pencil" size={14} color="white" />
-                </Pressable>
-              )}
+
+              {/* Düzenle butonu */}
+              <Pressable
+                style={styles.editBtn}
+                onPress={() => {
+                  setEditingItem(item);
+                  setForm({ title: item.title, img: item.img, trailer: item.trailer, imdb: item.imdb, type: item.type, year: item.year });
+                  setModalVisible(true);
+                }}
+              >
+                <Ionicons name="pencil" size={14} color="white" />
+              </Pressable>
             </View>
           )}
         />
       )}
 
-      {!isSearchMode && (
-        <Pressable style={styles.fab} onPress={() => setModalVisible(true)}>
-          <Ionicons name="add" size={30} color="white" />
-        </Pressable>
-      )}
+      {/* FAB - Yeni Ekle */}
+      <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
+        <Ionicons name="add" size={32} color="white" />
+      </TouchableOpacity>
 
-      {/* ── Film Öneri Modal (Shake) ── */}
-      <Modal visible={shakeModal} transparent animationType="fade" onRequestClose={() => setShakeModal(false)}>
+      {/* Shake Modal */}
+      <Modal visible={shakeModal} transparent animationType="fade">
         <Pressable style={styles.shakeOverlay} onPress={() => setShakeModal(false)}>
           <Animated.View style={[styles.shakeSheet, { transform: [{ scale: scaleAnim }] }]}>
-            <Pressable onPress={e => e.stopPropagation()}>
+            <Pressable>
               <Text style={styles.shakeTitle}>🎲 Film Önerisi!</Text>
               <Text style={styles.shakeSubTitle}>Sallama ile rastgele seçildi</Text>
 
@@ -282,10 +313,10 @@ export default function MoviesScreen() {
                       <Text style={styles.shakeMetaText}>⭐ {suggestedFilm.imdb}</Text>
                     </View>
                     <View style={styles.shakeMeta}>
-                      <Text style={styles.shakeMetaText}>📅 {suggestedFilm.year}</Text>
+                      <Text style={styles.shakeMetaText}>🎬 {suggestedFilm.type}</Text>
                     </View>
                     <View style={styles.shakeMeta}>
-                      <Text style={styles.shakeMetaText}>🎭 {suggestedFilm.type}</Text>
+                      <Text style={styles.shakeMetaText}>📅 {suggestedFilm.year}</Text>
                     </View>
                   </View>
 
@@ -328,7 +359,7 @@ export default function MoviesScreen() {
         </Pressable>
       </Modal>
 
-      {/* ── Film Ekle/Düzenle Modal ── */}
+      {/* Film Ekle/Düzenle Modal */}
       <Modal visible={modalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalContent}>
@@ -343,8 +374,12 @@ export default function MoviesScreen() {
               </View>
               <TextInput style={styles.input} placeholder="Tür" value={form.type} onChangeText={(t) => setForm({ ...form, type: t })} />
               <View style={styles.modalButtons}>
-                <Pressable style={[styles.btn, { backgroundColor: '#FFD1DC' }]} onPress={closeModal}><Text style={{ color: '#DB7093', fontWeight: 'bold' }}>İptal</Text></Pressable>
-                <Pressable style={[styles.btn, { backgroundColor: '#DB7093' }]} onPress={handleSave}><Text style={{ color: 'white', fontWeight: 'bold' }}>Kaydet</Text></Pressable>
+                <Pressable style={[styles.btn, { backgroundColor: '#FFD1DC' }]} onPress={closeModal}>
+                  <Text style={{ color: '#DB7093', fontWeight: 'bold' }}>İptal</Text>
+                </Pressable>
+                <Pressable style={[styles.btn, { backgroundColor: '#DB7093' }]} onPress={handleSave}>
+                  <Text style={{ color: 'white', fontWeight: 'bold' }}>Kaydet</Text>
+                </Pressable>
               </View>
             </ScrollView>
           </KeyboardAvoidingView>
@@ -355,51 +390,51 @@ export default function MoviesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container:       { flex: 1, backgroundColor: '#FFF5F7', paddingHorizontal: 10, paddingTop: 10 },
+  container:        { flex: 1, backgroundColor: '#FFF5F7', paddingHorizontal: 10, paddingTop: 10 },
 
-  topRow:          { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
-  searchBar:       { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'white', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10, elevation: 3, borderWidth: 1, borderColor: '#FFD1DC' },
-  searchInput:     { flex: 1, fontSize: 13, color: '#4A4A4A', padding: 0 },
+  topRow:           { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  searchBar:        { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'white', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10, elevation: 3, borderWidth: 1, borderColor: '#FFD1DC' },
+  searchInput:      { flex: 1, fontSize: 13, color: '#4A4A4A', padding: 0 },
 
-  shakeBtn:        { width: 46, height: 46, borderRadius: 14, backgroundColor: '#DB7093', alignItems: 'center', justifyContent: 'center', elevation: 4 },
-  shakeBtnEmoji:   { fontSize: 22 },
-  shakeHintText:   { fontSize: 11, color: '#c0a0b0', marginBottom: 6, marginLeft: 2, textAlign: 'center' },
+  shakeBtn:         { width: 46, height: 46, borderRadius: 14, backgroundColor: '#DB7093', alignItems: 'center', justifyContent: 'center', elevation: 4 },
+  shakeBtnEmoji:    { fontSize: 22 },
+  shakeHintText:    { fontSize: 11, color: '#c0a0b0', marginBottom: 6, marginLeft: 2, textAlign: 'center' },
 
-  resultCount:     { fontSize: 12, color: '#a07088', marginBottom: 6, marginLeft: 2 },
-  countText:       { fontSize: 11, color: '#c0a0b0', marginBottom: 6, marginLeft: 2 },
-  listContent:     { paddingBottom: 80 },
-  loadingMore:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16 },
-  loadingMoreText: { fontSize: 12, color: '#DB7093' },
+  resultCount:      { fontSize: 12, color: '#a07088', marginBottom: 6, marginLeft: 2 },
+  countText:        { fontSize: 11, color: '#c0a0b0', marginBottom: 6, marginLeft: 2 },
+  listContent:      { paddingBottom: 80 },
+  loadingMore:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16 },
+  loadingMoreText:  { fontSize: 12, color: '#DB7093' },
 
-  card:            { flex: 1, margin: 6, backgroundColor: 'white', borderRadius: 18, elevation: 4, overflow: 'hidden' },
-  poster:          { width: '100%', height: 210, resizeMode: 'cover', backgroundColor: '#FFE0EB' },
-  cardTitle:       { padding: 8, textAlign: 'center', fontWeight: 'bold', color: '#4A4A4A', fontSize: 12 },
-  imdbBadge:       { position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(255,255,255,0.92)', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
-  imdbText:        { color: '#DB7093', fontWeight: 'bold', fontSize: 11 },
-  editBtn:         { position: 'absolute', bottom: 38, right: 8, backgroundColor: '#DB7093', padding: 6, borderRadius: 14 },
-  fab:             { position: 'absolute', right: 20, bottom: 20, backgroundColor: '#DB7093', width: 58, height: 58, borderRadius: 29, justifyContent: 'center', alignItems: 'center', elevation: 8 },
+  card:             { flex: 1, margin: 6, backgroundColor: 'white', borderRadius: 18, elevation: 4, overflow: 'hidden' },
+  poster:           { width: '100%', height: 210, resizeMode: 'cover', backgroundColor: '#FFE0EB' },
+  cardTitle:        { padding: 8, textAlign: 'center', fontWeight: 'bold', color: '#4A4A4A', fontSize: 12 },
+  imdbBadge:        { position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(255,255,255,0.92)', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
+  imdbText:         { color: '#DB7093', fontWeight: 'bold', fontSize: 11 },
+  editBtn:          { position: 'absolute', bottom: 38, right: 8, backgroundColor: '#DB7093', padding: 6, borderRadius: 14 },
+  fab:              { position: 'absolute', right: 20, bottom: 20, backgroundColor: '#DB7093', width: 58, height: 58, borderRadius: 29, justifyContent: 'center', alignItems: 'center', elevation: 8 },
 
   // Shake Modal
-  shakeOverlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  shakeSheet:      { backgroundColor: 'white', borderRadius: 28, padding: 24, width: '100%', alignItems: 'center', elevation: 20, borderWidth: 2, borderColor: '#FFD1DC' },
-  shakeTitle:      { fontSize: 22, fontWeight: 'bold', color: '#DB7093', marginBottom: 4 },
-  shakeSubTitle:   { fontSize: 12, color: '#aaa', marginBottom: 16 },
-  shakePoster:     { width: 140, height: 200, borderRadius: 16, resizeMode: 'cover', marginBottom: 16, backgroundColor: '#FFE0EB' },
-  shakeFilmTitle:  { fontSize: 18, fontWeight: 'bold', color: '#4A4A4A', textAlign: 'center', marginBottom: 12 },
-  shakeMetaRow:    { flexDirection: 'row', gap: 8, marginBottom: 20, flexWrap: 'wrap', justifyContent: 'center' },
-  shakeMeta:       { backgroundColor: '#FFF5F7', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: '#FFD1DC' },
-  shakeMetaText:   { fontSize: 12, color: '#DB7093', fontWeight: '600' },
-  shakeBtnRow:     { flexDirection: 'row', gap: 10, width: '100%' },
-  shakeWatchBtn:   { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#DB7093', paddingVertical: 13, borderRadius: 16 },
-  shakeWatchBtnText: { color: 'white', fontWeight: 'bold', fontSize: 14 },
-  shakeAgainBtn:   { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#FFF0F4', paddingVertical: 13, borderRadius: 16, borderWidth: 1.5, borderColor: '#FFD1DC' },
-  shakeAgainBtnText: { color: '#DB7093', fontWeight: 'bold', fontSize: 14 },
+  shakeOverlay:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  shakeSheet:       { backgroundColor: 'white', borderRadius: 28, padding: 24, width: '100%', alignItems: 'center', elevation: 20, borderWidth: 2, borderColor: '#FFD1DC' },
+  shakeTitle:       { fontSize: 22, fontWeight: 'bold', color: '#DB7093', marginBottom: 4 },
+  shakeSubTitle:    { fontSize: 12, color: '#aaa', marginBottom: 16 },
+  shakePoster:      { width: 140, height: 200, borderRadius: 16, resizeMode: 'cover', marginBottom: 16, backgroundColor: '#FFE0EB' },
+  shakeFilmTitle:   { fontSize: 18, fontWeight: 'bold', color: '#4A4A4A', textAlign: 'center', marginBottom: 12 },
+  shakeMetaRow:     { flexDirection: 'row', gap: 8, marginBottom: 20, flexWrap: 'wrap', justifyContent: 'center' },
+  shakeMeta:        { backgroundColor: '#FFF5F7', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: '#FFD1DC' },
+  shakeMetaText:    { fontSize: 12, color: '#DB7093', fontWeight: '600' },
+  shakeBtnRow:      { flexDirection: 'row', gap: 10, width: '100%' },
+  shakeWatchBtn:    { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#DB7093', paddingVertical: 13, borderRadius: 16 },
+  shakeWatchBtnText:{ color: 'white', fontWeight: 'bold', fontSize: 14 },
+  shakeAgainBtn:    { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#FFF0F4', paddingVertical: 13, borderRadius: 16, borderWidth: 1.5, borderColor: '#FFD1DC' },
+  shakeAgainBtnText:{ color: '#DB7093', fontWeight: 'bold', fontSize: 14 },
 
   // Ekle/Düzenle Modal
-  modalOverlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center' },
-  modalContent:    { margin: 20, backgroundColor: '#FFF5F7', borderRadius: 30, padding: 25, alignItems: 'center', maxHeight: '80%', borderWidth: 2, borderColor: '#FFD1DC' },
-  modalHeader:     { fontSize: 22, fontWeight: 'bold', color: '#DB7093', marginBottom: 20 },
-  input:           { backgroundColor: 'white', padding: 12, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: '#FFD1DC', width: '100%' },
-  modalButtons:    { flexDirection: 'row', gap: 10 },
-  btn:             { flex: 1, padding: 15, borderRadius: 12, alignItems: 'center' },
+  modalOverlay:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center' },
+  modalContent:     { margin: 20, backgroundColor: '#FFF5F7', borderRadius: 30, padding: 25, alignItems: 'center', maxHeight: '80%', borderWidth: 2, borderColor: '#FFD1DC' },
+  modalHeader:      { fontSize: 22, fontWeight: 'bold', color: '#DB7093', marginBottom: 20 },
+  input:            { backgroundColor: 'white', padding: 12, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: '#FFD1DC', width: '100%' },
+  modalButtons:     { flexDirection: 'row', gap: 10 },
+  btn:              { flex: 1, padding: 15, borderRadius: 12, alignItems: 'center' },
 });

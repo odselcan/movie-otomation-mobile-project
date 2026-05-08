@@ -97,7 +97,7 @@ export default function ExploreScreen() {
     setSelectedGenre(0);
     setPage(1);
     setItems([]);
-    fetchItems(1, true);
+    fetchItems(1, true, 0, mediaTab, activeTab);
   }, [mediaTab, activeTab]);
 
   useEffect(() => {
@@ -108,28 +108,43 @@ export default function ExploreScreen() {
 
   const blocked = mediaTab === 'movie' ? BLOCKED_MOVIE_IDS : BLOCKED_TV_IDS;
 
-  const getEndpoint = (pageNum: number) => {
-    if (selectedGenre > 0) {
-      return `discover/${mediaTab}?api_key=${API_KEY}&language=tr-TR&with_genres=${selectedGenre}&without_genres=10749&sort_by=vote_average.desc&vote_count.gte=500&include_adult=false&page=${pageNum}`;
+  // genre, currentMediaTab, currentActiveTab parametrelerini direkt alıyor
+  // böylece stale state sorunu olmaz
+  const buildEndpoint = (
+    pageNum: number,
+    genre: number,
+    currentMediaTab: 'movie' | 'tv',
+    currentActiveTab: string
+  ) => {
+    if (genre > 0) {
+      return `discover/${currentMediaTab}?api_key=${API_KEY}&language=tr-TR&with_genres=${genre}&without_genres=10749&sort_by=vote_average.desc&vote_count.gte=500&include_adult=false&page=${pageNum}`;
     }
-    if (mediaTab === 'movie') {
-      const ep = activeTab === 'toprated' ? 'top_rated' : activeTab === 'upcoming' ? 'upcoming' : 'now_playing';
+    if (currentMediaTab === 'movie') {
+      const ep = currentActiveTab === 'toprated' ? 'top_rated' : currentActiveTab === 'upcoming' ? 'upcoming' : 'now_playing';
       return `movie/${ep}?api_key=${API_KEY}&language=tr-TR&region=US&page=${pageNum}`;
     } else {
-      const ep = activeTab === 'toprated' ? 'top_rated' : activeTab === 'upcoming' ? 'on_the_air' : 'popular';
+      const ep = currentActiveTab === 'toprated' ? 'top_rated' : currentActiveTab === 'upcoming' ? 'on_the_air' : 'popular';
       return `tv/${ep}?api_key=${API_KEY}&language=tr-TR&page=${pageNum}`;
     }
   };
 
-  const fetchItems = async (pageNum = 1, reset = false) => {
+  const fetchItems = async (
+    pageNum = 1,
+    reset = false,
+    genre = selectedGenre,
+    currentMediaTab: 'movie' | 'tv' = mediaTab,
+    currentActiveTab = activeTab
+  ) => {
+    const currentBlocked = currentMediaTab === 'movie' ? BLOCKED_MOVIE_IDS : BLOCKED_TV_IDS;
     if (pageNum === 1) setLoading(true);
     else setLoadingMore(true);
     try {
-      const res = await fetch(`https://api.themoviedb.org/3/${getEndpoint(pageNum)}`);
+      const endpoint = buildEndpoint(pageNum, genre, currentMediaTab, currentActiveTab);
+      const res = await fetch(`https://api.themoviedb.org/3/${endpoint}`);
       const data = await res.json();
       const newItems = (data.results ?? [])
-        .filter((i: any) => isSafe(i, blocked))
-        .map((i: any) => toMediaItem(i, mediaTab));
+        .filter((i: any) => isSafe(i, currentBlocked))
+        .map((i: any) => toMediaItem(i, currentMediaTab));
       setItems(prev => reset ? newItems : [...prev, ...newItems]);
       setHasMore(pageNum < 5);
       setPage(pageNum);
@@ -137,11 +152,12 @@ export default function ExploreScreen() {
     finally { setLoading(false); setLoadingMore(false); }
   };
 
+  // Genre seçilince doğrudan genreId'yi fetchItems'a geçiriyoruz
   const handleGenreSelect = (genreId: number) => {
     setSelectedGenre(genreId);
     setPage(1);
     setItems([]);
-    fetchItems(1, true);
+    fetchItems(1, true, genreId, mediaTab, activeTab);
   };
 
   const searchItems = async (query: string) => {
@@ -152,8 +168,10 @@ export default function ExploreScreen() {
       );
       const data = await res.json();
       setSearchResults(
-        (data.results ?? []).filter((i: any) => isSafe(i, blocked))
-          .map((i: any) => toMediaItem(i, mediaTab)).slice(0, 40)
+        (data.results ?? [])
+          .filter((i: any) => isSafe(i, blocked))
+          .map((i: any) => toMediaItem(i, mediaTab))
+          .slice(0, 40)
       );
     } catch (e) { console.error(e); }
     finally { setSearching(false); }
@@ -162,7 +180,10 @@ export default function ExploreScreen() {
   const navigateToDetail = (item: MediaItem) => {
     router.push({
       pathname: '/details/[id]',
-      params: { id: item.id, title: item.title, trailer: item.trailer, year: item.year, type: item.type, img: item.img, mediaType: item.mediaType },
+      params: {
+        id: item.id, title: item.title, trailer: item.trailer,
+        year: item.year, type: item.type, img: item.img, mediaType: item.mediaType,
+      },
     });
   };
 
@@ -173,7 +194,7 @@ export default function ExploreScreen() {
   return (
     <View style={styles.container}>
 
-      {/* ── ARAMA ── */}
+      {/* ARAMA */}
       <View style={styles.searchBar}>
         <Ionicons name="search-outline" size={16} color="#DB7093" />
         <TextInput
@@ -191,7 +212,7 @@ export default function ExploreScreen() {
         {searching && <ActivityIndicator size="small" color="#DB7093" />}
       </View>
 
-      {/* ── FİLM / DİZİ SEÇİCİ ── */}
+      {/* FİLM / DİZİ SEÇİCİ */}
       <View style={styles.mediaTabRow}>
         <Pressable
           style={[styles.mediaTab, mediaTab === 'movie' && styles.mediaTabActive]}
@@ -215,7 +236,7 @@ export default function ExploreScreen() {
 
       {!isSearchMode && (
         <>
-          {/* ── SEKMELER ── */}
+          {/* SEKMELER */}
           <View style={styles.tabRow}>
             {TABS.map((tab) => (
               <Pressable
@@ -235,7 +256,7 @@ export default function ExploreScreen() {
             ))}
           </View>
 
-          {/* ── TÜR FİLTRESİ ── */}
+          {/* TÜR FİLTRESİ */}
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -264,7 +285,7 @@ export default function ExploreScreen() {
         <Text style={styles.countText}>{items.length} içerik</Text>
       )}
 
-      {/* ── LİSTE ── */}
+      {/* LİSTE */}
       {loading ? (
         <FlatList
           data={Array.from({ length: 6 }, (_, i) => i)}
@@ -305,9 +326,7 @@ export default function ExploreScreen() {
                 <Text style={styles.imdbText}>⭐ {item.imdb}</Text>
               </View>
               <View style={styles.typeBadge}>
-                <Text style={styles.typeText}>
-                  {item.mediaType === 'movie' ? '🎬' : '📺'}
-                </Text>
+                <Text style={styles.typeText}>{item.mediaType === 'movie' ? '🎬' : '📺'}</Text>
               </View>
               <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
               <Text style={styles.cardYear}>{item.year}</Text>
@@ -322,35 +341,31 @@ export default function ExploreScreen() {
 const styles = StyleSheet.create({
   container:          { flex: 1, backgroundColor: '#FFF5F7', paddingHorizontal: 14, paddingTop: 12 },
 
-  // Arama
   searchBar:          { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'white', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 11, marginBottom: 12, elevation: 3, borderWidth: 1, borderColor: '#FFD1DC' },
   searchInput:        { flex: 1, fontSize: 14, color: '#4A4A4A', padding: 0 },
 
-  // Film/Dizi seçici
   mediaTabRow:        { flexDirection: 'row', gap: 10, marginBottom: 12 },
   mediaTab:           { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 11, borderRadius: 14, borderWidth: 1.5, borderColor: '#FFD1DC', backgroundColor: 'white' },
   mediaTabActive:     { backgroundColor: '#DB7093', borderColor: '#DB7093' },
   mediaTabText:       { fontSize: 14, fontWeight: '600', color: '#DB7093' },
   mediaTabTextActive: { color: 'white' },
 
-  // Sekmeler
   tabRow:             { flexDirection: 'row', gap: 8, marginBottom: 12 },
   tab:                { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 9, borderRadius: 12, borderWidth: 1, borderColor: '#FFD1DC', backgroundColor: 'white' },
   tabActive:          { backgroundColor: '#DB7093', borderColor: '#DB7093' },
   tabText:            { fontSize: 12, color: '#DB7093', fontWeight: '600' },
   tabTextActive:      { color: 'white' },
 
-  // Tür filtresi
-    genreScroll: { marginBottom: 12 },
-    genreRow:    { flexDirection: 'row', gap: 10, paddingRight: 8, paddingVertical: 6, alignItems: 'center' },
-    genreChip:   { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 22, backgroundColor: 'white', borderWidth: 1.5, borderColor: '#FFD1DC', minHeight: 38, justifyContent: 'center' },
-    genreChipActive: { backgroundColor: '#DB7093', borderColor: '#DB7093' },
-    genreText:   { fontSize: 13, color: '#DB7093', fontWeight: '600' },
-    genreTextActive: { color: 'white' },
-    resultCount:        { fontSize: 12, color: '#a07088', marginBottom: 8 },
-    countText:          { fontSize: 11, color: '#c0a0b0', marginBottom: 8 },
+  genreScroll:        { marginBottom: 12 },
+  genreRow:           { flexDirection: 'row', gap: 10, paddingRight: 8, paddingVertical: 6, alignItems: 'center' },
+  genreChip:          { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 22, backgroundColor: 'white', borderWidth: 1.5, borderColor: '#FFD1DC', minHeight: 38, justifyContent: 'center' },
+  genreChipActive:    { backgroundColor: '#DB7093', borderColor: '#DB7093' },
+  genreText:          { fontSize: 13, color: '#DB7093', fontWeight: '600' },
+  genreTextActive:    { color: 'white' },
 
-  // Liste
+  resultCount:        { fontSize: 12, color: '#a07088', marginBottom: 8 },
+  countText:          { fontSize: 11, color: '#c0a0b0', marginBottom: 8 },
+
   listContent:        { paddingBottom: 80, paddingTop: 4 },
   loadingMore:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16 },
   loadingMoreText:    { fontSize: 12, color: '#DB7093' },
@@ -358,13 +373,12 @@ const styles = StyleSheet.create({
   emptyIcon:          { fontSize: 48, marginBottom: 12 },
   emptyText:          { fontSize: 14, color: '#c0a0b0', textAlign: 'center' },
 
-  // Kart
   card:               { flex: 1, margin: 6, backgroundColor: 'white', borderRadius: 18, elevation: 4, overflow: 'hidden' },
   poster:             { width: '100%', height: 200, resizeMode: 'cover', backgroundColor: '#FFE0EB' },
   cardTitle:          { paddingHorizontal: 8, paddingTop: 8, textAlign: 'center', fontWeight: 'bold', color: '#4A4A4A', fontSize: 12 },
   cardYear:           { textAlign: 'center', fontSize: 10, color: '#aaa', paddingBottom: 8, paddingTop: 3 },
   imdbBadge:          { position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(255,255,255,0.92)', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
   imdbText:           { color: '#DB7093', fontWeight: 'bold', fontSize: 11 },
-  typeBadge:          { position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 8 },
+  typeBadge:          { position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.45)', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 8 },
   typeText:           { fontSize: 12 },
 });
