@@ -1,4 +1,4 @@
-// locales/types.ts — Tip tanımı (as const olmadan, her iki dil implement eder)
+// locales/types.ts
 export interface Translations {
   common: {
     search: string; loading: string; error: string; back: string;
@@ -20,6 +20,11 @@ export interface Translations {
     cast: string; similar: string; trailer: string; noTrailer: string;
     overview: string; releaseDate: string; runtime: string; minutes: string;
     seasons: string; episodes: string;
+    // Yeni eklenen key'ler
+    movieDetail: string; seriesDetail: string; trailerLoading: string;
+    noOverview: string; addToFavorites: string; removeFromFavorites: string;
+    inFavorites: string; addToWatchlist: string; removeFromWatchlist: string;
+    inWatchlist: string; similarMovies: string; similarSeries: string;
   };
   favorites: {
     title: string; empty: string; emptyHint: string; sortBy: string;

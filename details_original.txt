@@ -1,4 +1,7 @@
-// app/details/[id].tsx
+﻿// app/details/[id].tsx
+// mediaType='tv' ÔåÆ TV endpointleri | mediaType='movie' ÔåÆ Film endpointleri
+// Dizi sayfas─▒ndan gelirken mediaType='tv' param'─▒ g├Ânderilmeli
+
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -13,7 +16,6 @@ import {
   getCredits, getDetail, getSimilar, getVideos,
   MediaType, TMDB_IMAGE, tmdbToItem,
 } from '../../services/tmdb';
-import { useI18n } from '../../hooks/useI18n';
 
 interface FavoriteItem {
   id: string; title: string; trailer: string; year: string;
@@ -51,21 +53,21 @@ const showToast = (msg: string) => {
 export default function DetailsScreen() {
   const { id, title, trailer, year, type, img, mediaType: mediaTypeParam } = useLocalSearchParams();
   const router = useRouter();
-  const { t } = useI18n();
 
+  // Film mi dizi mi? ÔÇö series.tsx 'mediaType=tv' g├Ânderir, index.tsx g├Ândermiyor = movie
   const mediaType: MediaType = (mediaTypeParam as string) === 'tv' ? 'tv' : 'movie';
   const isTV = mediaType === 'tv';
 
-  const [playing, setPlaying]           = useState(true);
-  const [isFavorite, setIsFavorite]     = useState(false);
-  const [isWatchlist, setIsWatchlist]   = useState(false);
-  const [loading, setLoading]           = useState(true);
-  const [overview, setOverview]         = useState('');
-  const [voteAverage, setVoteAverage]   = useState('');
-  const [actors, setActors]             = useState<Actor[]>([]);
-  const [similarItems, setSimilarItems] = useState<SimilarItem[]>([]);
-  const [trailerKey, setTrailerKey]     = useState((trailer as string) || '');
-  const [seasons, setSeasons]           = useState<number>(0);
+  const [playing, setPlaying]             = useState(true);
+  const [isFavorite, setIsFavorite]       = useState(false);
+  const [isWatchlist, setIsWatchlist]     = useState(false);
+  const [loading, setLoading]             = useState(true);
+  const [overview, setOverview]           = useState('');
+  const [voteAverage, setVoteAverage]     = useState('');
+  const [actors, setActors]               = useState<Actor[]>([]);
+  const [similarItems, setSimilarItems]   = useState<SimilarItem[]>([]);
+  const [trailerKey, setTrailerKey]       = useState((trailer as string) || '');
+  const [seasons, setSeasons]             = useState<number>(0);
 
   const anim = useRef(new Animated.Value(0)).current;
   const skeletonOpacity = anim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.7] });
@@ -101,19 +103,16 @@ export default function DetailsScreen() {
   const fetchTMDB = async () => {
     try {
       const tmdbId = parseInt(id as string);
-      console.log('>>> tmdbId:', tmdbId, 'mediaType:', mediaType);
       if (isNaN(tmdbId)) return;
+
+      // Film mi dizi mi ÔåÆ do─şru endpoint
       const [detail, credits, similar, video] = await Promise.all([
         getDetail(tmdbId, mediaType),
         getCredits(tmdbId, mediaType),
         getSimilar(tmdbId, mediaType),
         getVideos(tmdbId, mediaType),
       ]);
-      console.log('>>> credits length:', credits?.length);
-      console.log('>>> similar length:', similar?.length);
-      console.log('>>> video:', video);
-      console.log('>>> detail.overview:', detail?.overview?.slice(0, 50));
-      console.log('>>> API KEY:', process.env.EXPO_PUBLIC_TMDB_API_KEY);
+
       if (detail?.overview) setOverview(detail.overview);
       if (detail?.vote_average) setVoteAverage(detail.vote_average.toFixed(1));
       if (isTV && detail?.number_of_seasons) setSeasons(detail.number_of_seasons);
@@ -132,7 +131,7 @@ export default function DetailsScreen() {
       if (isFavorite) {
         favs = favs.filter((f) => f.id !== id);
         setIsFavorite(false);
-        showToast(t('detail.removeFromFavorites'));
+        showToast('­şÆö Favorilerden ├ğ─▒kar─▒ld─▒');
       } else {
         favs = [{
           id: id as string, title: title as string, trailer: trailerKey,
@@ -140,7 +139,7 @@ export default function DetailsScreen() {
           userRating: 0, mediaType,
         }, ...favs];
         setIsFavorite(true);
-        showToast(t('detail.addToFavorites'));
+        showToast('­şÆû Favorilere eklendi');
       }
       await AsyncStorage.setItem('favorites_data', JSON.stringify(favs));
     } catch (e) { console.error(e); }
@@ -153,14 +152,14 @@ export default function DetailsScreen() {
       if (isWatchlist) {
         watch = watch.filter((w) => w.id !== id);
         setIsWatchlist(false);
-        showToast(t('detail.removeFromWatchlist'));
+        showToast('­şôØ ─░zleme listesinden ├ğ─▒kar─▒ld─▒');
       } else {
         watch = [{
           id: id as string, title: title as string, trailer: trailerKey,
           year: year as string, type: type as string, img: img as string, mediaType,
         }, ...watch];
         setIsWatchlist(true);
-        showToast(t('detail.addToWatchlist'));
+        showToast('Ô£à ─░zleme listesine eklendi');
       }
       await AsyncStorage.setItem('watchlist_data', JSON.stringify(watch));
     } catch (e) { console.error(e); }
@@ -173,11 +172,9 @@ export default function DetailsScreen() {
       <View style={styles.headerBar}>
         <Pressable style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#DB7093" />
-          <Text style={styles.backText}>{t('common.back')}</Text>
+          <Text style={styles.backText}>Geri D├Ân</Text>
         </Pressable>
-        <Text style={styles.headerTitle}>
-          {isTV ? `📺 ${t('detail.seriesDetail')}` : `🎬 ${t('detail.movieDetail')}`}
-        </Text>
+        <Text style={styles.headerTitle}>{isTV ? '­şô║ Dizi Detay─▒' : '­şÄ¼ Film Detay─▒'}</Text>
       </View>
 
       {/* FRAGMAN */}
@@ -192,7 +189,7 @@ export default function DetailsScreen() {
         ) : (
           <View style={styles.noTrailer}>
             <Ionicons name="film-outline" size={40} color="#FFD1DC" />
-            <Text style={styles.noTrailerText}>{t('detail.trailerLoading')}</Text>
+            <Text style={styles.noTrailerText}>Fragman y├╝kleniyor...</Text>
           </View>
         )}
       </View>
@@ -220,7 +217,7 @@ export default function DetailsScreen() {
         </View>
       ) : (
         <>
-          {/* BİLGİ KARTI */}
+          {/* B─░LG─░ KARTI */}
           <View style={styles.infoCard}>
             <View style={styles.titleRow}>
               <Text style={styles.titleText}>{title}</Text>
@@ -230,7 +227,7 @@ export default function DetailsScreen() {
             </View>
 
             <View style={styles.metaRow}>
-              <Text style={styles.genreText}>🎭 {type}</Text>
+              <Text style={styles.genreText}>­şÄ¡ {type}</Text>
               <View style={styles.metaRight}>
                 {voteAverage ? (
                   <View style={styles.imdbBadge}>
@@ -240,7 +237,7 @@ export default function DetailsScreen() {
                 ) : null}
                 {isTV && seasons > 0 ? (
                   <View style={styles.seasonBadge}>
-                    <Text style={styles.seasonText}>📺 {seasons} {t('detail.seasons')}</Text>
+                    <Text style={styles.seasonText}>­şô║ {seasons} Sezon</Text>
                   </View>
                 ) : null}
               </View>
@@ -248,11 +245,11 @@ export default function DetailsScreen() {
 
             <View style={styles.divider} />
             <Text style={styles.descriptionText}>
-              {overview || t('detail.noOverview')}
+              {overview || 'Bu i├ğerik i├ğin a├ğ─▒klama bulunamad─▒.'}
             </Text>
           </View>
 
-          {/* FAVORİ & WATCHLIST */}
+          {/* FAVOR─░ & WATCHLIST */}
           <View style={styles.actionRow}>
             <Pressable
               style={[styles.actionBtn, isFavorite && styles.actionBtnActive]}
@@ -261,7 +258,7 @@ export default function DetailsScreen() {
               <Ionicons name={isFavorite ? 'heart' : 'heart-outline'} size={22}
                 color={isFavorite ? 'white' : '#DB7093'} />
               <Text style={[styles.actionBtnText, isFavorite && styles.actionBtnTextActive]}>
-                {isFavorite ? t('detail.inFavorites') : t('detail.addToFavorites')}
+                {isFavorite ? 'Favoride' : 'Favorilere Ekle'}
               </Text>
             </Pressable>
             <Pressable
@@ -271,7 +268,7 @@ export default function DetailsScreen() {
               <Ionicons name={isWatchlist ? 'bookmark' : 'bookmark-outline'} size={22}
                 color={isWatchlist ? 'white' : '#DB7093'} />
               <Text style={[styles.actionBtnText, isWatchlist && styles.actionBtnTextActive]}>
-                {isWatchlist ? t('detail.inWatchlist') : t('detail.addToWatchlist')}
+                {isWatchlist ? 'Listede' : 'Listeye Ekle'}
               </Text>
             </Pressable>
           </View>
@@ -279,7 +276,7 @@ export default function DetailsScreen() {
           {/* OYUNCULAR */}
           {actors.length > 0 && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>🎬 {t('detail.cast')}</Text>
+              <Text style={styles.sectionTitle}>­şÄ¼ Oyuncular</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <View style={styles.actorsRow}>
                   {actors.map((actor) => (
@@ -297,11 +294,11 @@ export default function DetailsScreen() {
             </View>
           )}
 
-          {/* BENZERİ İÇERİKLER */}
+          {/* BENZER─░ ─░├çER─░KLER */}
           {similarItems.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>
-                {isTV ? `📺 ${t('detail.similarSeries')}` : `🎞️ ${t('detail.similarMovies')}`}
+                {isTV ? '­şô║ Benzer Diziler' : '­şÄŞ´©Å Benzer Filmler'}
               </Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <View style={styles.similarRow}>
@@ -322,7 +319,7 @@ export default function DetailsScreen() {
                     >
                       <Image source={{ uri: item.img }} style={styles.similarPoster} />
                       <View style={styles.similarImdb}>
-                        <Text style={styles.similarImdbText}>⭐ {item.imdb}</Text>
+                        <Text style={styles.similarImdbText}>Ô¡É {item.imdb}</Text>
                       </View>
                       <Text style={styles.similarTitle} numberOfLines={2}>{item.title}</Text>
                       <Text style={styles.similarYear}>{item.year}</Text>
@@ -341,45 +338,45 @@ export default function DetailsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container:       { flex: 1, backgroundColor: '#FFF5F7' },
-  headerBar:       { paddingTop: 50, paddingHorizontal: 15, paddingBottom: 15, backgroundColor: 'white', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headerTitle:     { fontSize: 18, fontWeight: 'bold', color: '#DB7093' },
-  backButton:      { flexDirection: 'row', alignItems: 'center' },
-  backText:        { color: '#DB7093', fontWeight: 'bold', marginLeft: 5 },
-  videoContainer:  { width: '100%', backgroundColor: '#000' },
-  noTrailer:       { height: 200, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1a1a1a' },
-  noTrailerText:   { color: '#FFD1DC', marginTop: 8, fontSize: 13 },
-  infoCard:        { margin: 16, padding: 20, backgroundColor: 'white', borderRadius: 25, elevation: 3, shadowColor: '#DB7093', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 6 },
-  titleRow:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 },
-  titleText:       { fontSize: 22, fontWeight: 'bold', color: '#4A4A4A', flex: 1, lineHeight: 28 },
-  badge:           { backgroundColor: '#DB7093', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
-  badgeText:       { color: 'white', fontWeight: 'bold', fontSize: 12 },
-  metaRow:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginVertical: 8 },
-  metaRight:       { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  genreText:       { fontSize: 15, color: '#DB7093' },
-  imdbBadge:       { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FFF5F7', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, borderWidth: 1, borderColor: '#FFD1DC' },
-  imdbText:        { fontSize: 13, color: '#f39c12', fontWeight: 'bold' },
-  seasonBadge:     { backgroundColor: '#FFF5F7', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, borderWidth: 1, borderColor: '#FFD1DC' },
-  seasonText:      { fontSize: 12, color: '#DB7093', fontWeight: '600' },
-  divider:         { height: 1, backgroundColor: '#FFE4E1', marginVertical: 10 },
+  container:   { flex: 1, backgroundColor: '#FFF5F7' },
+  headerBar:   { paddingTop: 50, paddingHorizontal: 15, paddingBottom: 15, backgroundColor: 'white', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#DB7093' },
+  backButton:  { flexDirection: 'row', alignItems: 'center' },
+  backText:    { color: '#DB7093', fontWeight: 'bold', marginLeft: 5 },
+  videoContainer: { width: '100%', backgroundColor: '#000' },
+  noTrailer:   { height: 200, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1a1a1a' },
+  noTrailerText: { color: '#FFD1DC', marginTop: 8, fontSize: 13 },
+  infoCard:    { margin: 16, padding: 20, backgroundColor: 'white', borderRadius: 25, elevation: 3, shadowColor: '#DB7093', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 6 },
+  titleRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 },
+  titleText:   { fontSize: 22, fontWeight: 'bold', color: '#4A4A4A', flex: 1, lineHeight: 28 },
+  badge:       { backgroundColor: '#DB7093', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
+  badgeText:   { color: 'white', fontWeight: 'bold', fontSize: 12 },
+  metaRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginVertical: 8 },
+  metaRight:   { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  genreText:   { fontSize: 15, color: '#DB7093' },
+  imdbBadge:   { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FFF5F7', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, borderWidth: 1, borderColor: '#FFD1DC' },
+  imdbText:    { fontSize: 13, color: '#f39c12', fontWeight: 'bold' },
+  seasonBadge: { backgroundColor: '#FFF5F7', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, borderWidth: 1, borderColor: '#FFD1DC' },
+  seasonText:  { fontSize: 12, color: '#DB7093', fontWeight: '600' },
+  divider:     { height: 1, backgroundColor: '#FFE4E1', marginVertical: 10 },
   descriptionText: { fontSize: 14, color: '#777', lineHeight: 22 },
-  actionRow:       { flexDirection: 'row', gap: 12, marginHorizontal: 16, marginBottom: 8 },
-  actionBtn:       { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 14, borderRadius: 16, borderWidth: 1.5, borderColor: '#DB7093', backgroundColor: 'white' },
+  actionRow:   { flexDirection: 'row', gap: 12, marginHorizontal: 16, marginBottom: 8 },
+  actionBtn:   { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 14, borderRadius: 16, borderWidth: 1.5, borderColor: '#DB7093', backgroundColor: 'white' },
   actionBtnActive:     { backgroundColor: '#DB7093', borderColor: '#DB7093' },
   actionBtnText:       { color: '#DB7093', fontWeight: 'bold', fontSize: 13 },
   actionBtnTextActive: { color: 'white' },
-  section:         { marginTop: 8, marginBottom: 4 },
-  sectionTitle:    { fontSize: 17, fontWeight: 'bold', color: '#DB7093', marginLeft: 16, marginBottom: 12 },
-  actorsRow:       { flexDirection: 'row', paddingHorizontal: 16, gap: 14 },
-  actorCard:       { alignItems: 'center', width: 72 },
-  actorAvatar:     { width: 62, height: 62, borderRadius: 31, borderWidth: 2, borderColor: '#FFD1DC', backgroundColor: '#FFE0EB' },
-  actorName:       { fontSize: 11, fontWeight: '600', color: '#4A4A4A', marginTop: 6, textAlign: 'center' },
-  actorRole:       { fontSize: 10, color: '#DB7093', textAlign: 'center', fontStyle: 'italic' },
-  similarRow:      { flexDirection: 'row', paddingHorizontal: 16, gap: 12, paddingBottom: 8 },
-  similarCard:     { width: 110, backgroundColor: 'white', borderRadius: 16, overflow: 'hidden', elevation: 3 },
-  similarPoster:   { width: '100%', height: 150, backgroundColor: '#FFE0EB', resizeMode: 'cover' },
-  similarImdb:     { position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(255,255,255,0.9)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
+  section:      { marginTop: 8, marginBottom: 4 },
+  sectionTitle: { fontSize: 17, fontWeight: 'bold', color: '#DB7093', marginLeft: 16, marginBottom: 12 },
+  actorsRow:    { flexDirection: 'row', paddingHorizontal: 16, gap: 14 },
+  actorCard:    { alignItems: 'center', width: 72 },
+  actorAvatar:  { width: 62, height: 62, borderRadius: 31, borderWidth: 2, borderColor: '#FFD1DC', backgroundColor: '#FFE0EB' },
+  actorName:    { fontSize: 11, fontWeight: '600', color: '#4A4A4A', marginTop: 6, textAlign: 'center' },
+  actorRole:    { fontSize: 10, color: '#DB7093', textAlign: 'center', fontStyle: 'italic' },
+  similarRow:   { flexDirection: 'row', paddingHorizontal: 16, gap: 12, paddingBottom: 8 },
+  similarCard:  { width: 110, backgroundColor: 'white', borderRadius: 16, overflow: 'hidden', elevation: 3 },
+  similarPoster: { width: '100%', height: 150, backgroundColor: '#FFE0EB', resizeMode: 'cover' },
+  similarImdb:  { position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(255,255,255,0.9)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
   similarImdbText: { fontSize: 10, color: '#DB7093', fontWeight: 'bold' },
-  similarTitle:    { fontSize: 11, fontWeight: 'bold', color: '#4A4A4A', padding: 8, paddingBottom: 2 },
-  similarYear:     { fontSize: 10, color: '#aaa', paddingHorizontal: 8, paddingBottom: 8 },
+  similarTitle: { fontSize: 11, fontWeight: 'bold', color: '#4A4A4A', padding: 8, paddingBottom: 2 },
+  similarYear:  { fontSize: 10, color: '#aaa', paddingHorizontal: 8, paddingBottom: 8 },
 });

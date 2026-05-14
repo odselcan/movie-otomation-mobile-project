@@ -1,17 +1,16 @@
-// services/tmdb.ts
-// Film → /movie/ | Dizi → /tv/
+﻿// services/tmdb.ts
+// Film ÔåÆ /movie/ | Dizi ÔåÆ /tv/
 
-const API_KEY = process.env.EXPO_PUBLIC_TMDB_API_KEY ?? '2486490124fea972467ec0b8e6847a5f';
+const API_KEY = process.env.EXPO_PUBLIC_TMDB_API_KEY ?? '';
 const BASE_URL = 'https://api.themoviedb.org/3';
 const IMAGE_BASE = 'https://image.tmdb.org/t/p/w500';
-//const API_KEY = '2486490124fea972467ec0b8e6847a5f'; 
 
 export type MediaType = 'movie' | 'tv';
 
 export const TMDB_IMAGE = (path: string) =>
   path ? `${IMAGE_BASE}${path}` : 'https://via.placeholder.com/500x750?text=Poster+Yok';
 
-// ── Film ──────────────────────────────────────────────────────
+// ÔöÇÔöÇ Film ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
 async function getMovieDetail(id: number) {
   const res = await fetch(`${BASE_URL}/movie/${id}?api_key=${API_KEY}&language=tr-TR`);
   return res.json();
@@ -38,7 +37,7 @@ async function getMovieVideos(id: number): Promise<string | null> {
   return t?.key ?? null;
 }
 
-// ── Dizi (TV) ─────────────────────────────────────────────────
+// ÔöÇÔöÇ Dizi (TV) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
 async function getTVDetail(id: number) {
   const res = await fetch(`${BASE_URL}/tv/${id}?api_key=${API_KEY}&language=tr-TR`);
   return res.json();
@@ -65,7 +64,7 @@ async function getTVVideos(id: number): Promise<string | null> {
   return t?.key ?? null;
 }
 
-// ── Ortak API — mediaType'a göre otomatik seçim ───────────────
+// ÔöÇÔöÇ Ortak API ÔÇö mediaType'a g├Âre otomatik se├ğim ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
 export async function getDetail(id: number, mediaType: MediaType) {
   return mediaType === 'tv' ? getTVDetail(id) : getMovieDetail(id);
 }
@@ -79,13 +78,13 @@ export async function getVideos(id: number, mediaType: MediaType): Promise<strin
   return mediaType === 'tv' ? getTVVideos(id) : getMovieVideos(id);
 }
 
-// ── TMDB nesnesini uygulama formatına çevir ───────────────────
+// ÔöÇÔöÇ TMDB nesnesini uygulama format─▒na ├ğevir ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
 const GENRE_MAP: Record<number, string> = {
   28: 'Aksiyon', 12: 'Macera', 16: 'Animasyon', 35: 'Komedi',
-  80: 'Suç', 99: 'Belgesel', 18: 'Dram', 10751: 'Aile',
+  80: 'Su├ğ', 99: 'Belgesel', 18: 'Dram', 10751: 'Aile',
   14: 'Fantastik', 36: 'Tarih', 27: 'Korku', 9648: 'Gizem',
   10749: 'Romantik', 878: 'Bilim Kurgu', 53: 'Gerilim',
-  10759: 'Aksiyon', 10765: 'Bilim Kurgu', 10762: 'Çocuk',
+  10759: 'Aksiyon', 10765: 'Bilim Kurgu', 10762: '├çocuk',
 };
 
 export function tmdbToItem(m: any, mediaType: MediaType) {

@@ -4,7 +4,7 @@ import { Translations } from './types';
 const tr: Translations = {
   common: {
     search: 'Ara...', loading: 'Yükleniyor...', error: 'Bir hata oluştu',
-    back: 'Geri', close: 'Kapat', save: 'Kaydet', cancel: 'İptal',
+    back: 'Geri Dön', close: 'Kapat', save: 'Kaydet', cancel: 'İptal',
     delete: 'Sil', share: 'Paylaş', yes: 'Evet', no: 'Hayır',
     noResults: 'Sonuç bulunamadı', noInternet: 'İnternet bağlantısı yok',
     retry: 'Tekrar Dene', all: 'Tümü', rating: 'Puan',
@@ -27,6 +27,18 @@ const tr: Translations = {
     noTrailer: 'Fragman bulunamadı', overview: 'Özet',
     releaseDate: 'Çıkış Tarihi', runtime: 'Süre', minutes: 'dakika',
     seasons: 'Sezon', episodes: 'Bölüm',
+    movieDetail: 'Film Detayı',
+    seriesDetail: 'Dizi Detayı',
+    trailerLoading: 'Fragman yükleniyor...',
+    noOverview: 'Bu içerik için açıklama bulunamadı.',
+    addToFavorites: 'Favorilere Ekle',
+    removeFromFavorites: 'Favorilerden Çıkarıldı',
+    inFavorites: 'Favoride',
+    addToWatchlist: 'Listeye Ekle',
+    removeFromWatchlist: 'Listeden Çıkarıldı',
+    inWatchlist: 'Listede',
+    similarMovies: 'Benzer Filmler',
+    similarSeries: 'Benzer Diziler',
   },
   favorites: {
     title: 'Favorilerim', empty: 'Henüz favori eklemediniz',
