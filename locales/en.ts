@@ -1,0 +1,80 @@
+// locales/en.ts
+import { Translations } from './types';
+
+const en: Translations = {
+  common: {
+    search: 'Search...', loading: 'Loading...', error: 'An error occurred',
+    back: 'Back', close: 'Close', save: 'Save', cancel: 'Cancel',
+    delete: 'Delete', share: 'Share', yes: 'Yes', no: 'No',
+    noResults: 'No results found', noInternet: 'No internet connection',
+    retry: 'Retry', all: 'All', rating: 'Rating',
+  },
+  tabs: {
+    films: 'Movies', series: 'Series', explore: 'Explore', map: 'Map',
+    favorites: 'Favorites', watchlist: 'Watchlist',
+    notifications: 'Notifications', sensors: 'Sensors',
+  },
+  media: {
+    topRated: 'Top Rated', nowPlaying: 'Now Playing', popular: 'Popular',
+    upcoming: 'Upcoming', onTheAir: 'On The Air', movie: 'Movie', series: 'Series',
+    shakeHint: 'Shake your phone for a movie suggestion!',
+    randomSuggestion: 'Random Suggestion', watchNow: 'Watch Now',
+    addFavorite: 'Add to Favorites', removeFavorite: 'Remove from Favorites',
+    addWatchlist: 'Add to Watchlist',
+  },
+  detail: {
+    cast: 'Cast', similar: 'Similar Content', trailer: 'Trailer',
+    noTrailer: 'No trailer found', overview: 'Overview',
+    releaseDate: 'Release Date', runtime: 'Runtime', minutes: 'min',
+    seasons: 'Seasons', episodes: 'Episodes',
+  },
+  favorites: {
+    title: 'My Favorites', empty: 'No favorites yet',
+    emptyHint: 'You can add movies or series to favorites',
+    sortBy: 'Sort by', sortByDate: 'By Date', sortByRating: 'By Rating',
+    sortByTitle: 'By Title', shareList: 'Share List',
+    shareMessage: 'My favorite movies:', rateThis: 'Rate This',
+    yourRating: 'Your Rating', note: 'Note', addNote: 'Add a note...',
+  },
+  watchlist: {
+    title: 'My Watchlist', empty: 'Watchlist is empty',
+    emptyHint: 'Add content you want to watch later',
+    watched: 'Watched', pending: 'Pending',
+    markWatched: 'Mark as Watched', markPending: 'Mark as Pending',
+    shareWatched: 'Share Watched', sharePending: 'Share Pending',
+  },
+  map: {
+    title: 'Cinema Map', nearest: 'Nearest Cinema',
+    findNearest: 'Find Nearest Cinema', getDirections: 'Get Directions',
+    addContact: 'Add to Contacts', sendSMS: 'Send SMS',
+    filterByGenre: 'Filter by Genre', favoriteCinema: 'Favorite Cinema',
+    distance: 'Distance', km: 'km',
+  },
+  sensors: {
+    title: 'Sensors', accelerometer: 'Accelerometer', location: 'Location',
+    battery: 'Battery', network: 'Network Status', brightness: 'Brightness',
+    latitude: 'Latitude', longitude: 'Longitude', altitude: 'Altitude',
+    speed: 'Speed', heading: 'Heading', accuracy: 'Accuracy',
+    charging: 'Charging', notCharging: 'Not Charging',
+    wifi: 'Wi-Fi', cellular: 'Mobile Data', noConnection: 'No Connection',
+    cinemaMode: 'Cinema Mode', normalMode: 'Normal Mode',
+    getLocation: 'Get Location', meters: 'meters', mps: 'm/s',
+  },
+  notifications: {
+    title: 'Notifications', scheduleNow: 'Send Notification Now',
+    scheduleLater: 'Remind Me Later', dailyReminder: 'Daily Reminder',
+    permissionDenied: 'Notification permission denied',
+    sent: 'Notification sent!', scheduled: 'Notification scheduled',
+  },
+  a11y: {
+    posterImage: 'Movie poster', ratingBadge: 'Rating badge',
+    favoriteButton: 'Add to favorites button', removeButton: 'Remove button',
+    searchInput: 'Search input', closeModal: 'Close modal',
+    playTrailer: 'Play trailer', cinemaMode: 'Toggle cinema mode',
+    batteryLevel: 'Battery level', networkStatus: 'Network connection status',
+    mapMarker: 'Cinema location', sortButton: 'Sort options',
+    pageNumber: 'Page number', starRating: 'Star rating',
+  },
+};
+
+export default en;

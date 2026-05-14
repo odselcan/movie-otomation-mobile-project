@@ -1,4 +1,6 @@
 // app/(drawer)/(tabs)/explore.tsx
+// i18n: Türkçe / İngilizce tam dil desteği
+
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -7,6 +9,7 @@ import {
   ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { SkeletonPoster } from '../../../components/SkeletonCard';
+import { useI18n } from '../../../hooks/useI18n'; // ← i18n
 
 interface MediaItem {
   id: string; title: string; img: string;
@@ -14,44 +17,39 @@ interface MediaItem {
   trailer: string; mediaType: 'movie' | 'tv';
 }
 
-const API_KEY = process.env.EXPO_PUBLIC_TMDB_API_KEY ?? '2486490124fea972467ec0b8e6847a5f';
+const API_KEY = process.env.EXPO_PUBLIC_TMDB_API_KEY ?? '';
 const IMAGE_BASE = 'https://image.tmdb.org/t/p/w500';
 
 const BLOCKED_MOVIE_IDS = new Set([27205, 550, 680, 497, 562, 18491, 11216, 423108, 631842, 361743]);
 const BLOCKED_TV_IDS    = new Set([1396, 1399, 94997, 76479, 60574, 93405, 100088, 63174, 87108, 66732]);
 const BLOCKED_KEYWORDS  = ['sex', 'sexo', 'erotik', 'erotic', 'nude', 'porn', 'xxx', 'inconnu'];
 
-const MOVIE_GENRES = [
-  { id: 0,     label: 'Tümü'        },
-  { id: 28,    label: 'Aksiyon'     },
-  { id: 35,    label: 'Komedi'      },
-  { id: 18,    label: 'Dram'        },
-  { id: 878,   label: 'Bilim Kurgu' },
-  { id: 27,    label: 'Korku'       },
-  { id: 16,    label: 'Animasyon'   },
-  { id: 53,    label: 'Gerilim'     },
-  { id: 12,    label: 'Macera'      },
-  { id: 14,    label: 'Fantastik'   },
-  { id: 10751, label: 'Aile'        },
-  { id: 36,    label: 'Tarih'       },
+// Genre ID'leri — label'lar component içinde t() ile alınır
+const MOVIE_GENRE_IDS = [
+  { id: 0,     key: 'genres.all'       },
+  { id: 28,    key: 'genres.action'    },
+  { id: 35,    key: 'genres.comedy'    },
+  { id: 18,    key: 'genres.drama'     },
+  { id: 878,   key: 'genres.sciFi'     },
+  { id: 27,    key: 'genres.horror'    },
+  { id: 16,    key: 'genres.animation' },
+  { id: 53,    key: 'genres.thriller'  },
+  { id: 12,    key: 'genres.adventure' },
+  { id: 14,    key: 'genres.fantasy'   },
+  { id: 10751, key: 'genres.family'    },
+  { id: 36,    key: 'genres.history'   },
 ];
 
-const TV_GENRES = [
-  { id: 0,     label: 'Tümü'        },
-  { id: 10759, label: 'Aksiyon'     },
-  { id: 35,    label: 'Komedi'      },
-  { id: 18,    label: 'Dram'        },
-  { id: 10765, label: 'Bilim Kurgu' },
-  { id: 9648,  label: 'Gizem'       },
-  { id: 10751, label: 'Aile'        },
-  { id: 16,    label: 'Animasyon'   },
-  { id: 10762, label: 'Çocuk'       },
-];
-
-const TABS = [
-  { key: 'toprated', label: 'En İyi',  icon: 'star-outline'     },
-  { key: 'popular',  label: 'Popüler', icon: 'flame-outline'    },
-  { key: 'upcoming', label: 'Yakında', icon: 'calendar-outline' },
+const TV_GENRE_IDS = [
+  { id: 0,     key: 'genres.all'       },
+  { id: 10759, key: 'genres.action'    },
+  { id: 35,    key: 'genres.comedy'    },
+  { id: 18,    key: 'genres.drama'     },
+  { id: 10765, key: 'genres.sciFi'     },
+  { id: 9648,  key: 'genres.mystery'   },
+  { id: 10751, key: 'genres.family'    },
+  { id: 16,    key: 'genres.animation' },
+  { id: 10762, key: 'genres.kids'      },
 ];
 
 function isSafe(item: any, blocked: Set<number>): boolean {
@@ -81,6 +79,15 @@ function toMediaItem(item: any, mediaType: 'movie' | 'tv'): MediaItem {
 
 export default function ExploreScreen() {
   const router = useRouter();
+  const { t } = useI18n(); // ← hook
+
+  // TABS — component içinde tanımlı, t() kullanabiliyor
+  const TABS = [
+    { key: 'toprated', label: t('media.topRated'), icon: 'star-outline'     },
+    { key: 'popular',  label: t('media.popular'),  icon: 'flame-outline'    },
+    { key: 'upcoming', label: t('media.upcoming'), icon: 'calendar-outline' },
+  ];
+
   const [mediaTab, setMediaTab]           = useState<'movie' | 'tv'>('movie');
   const [activeTab, setActiveTab]         = useState('toprated');
   const [selectedGenre, setSelectedGenre] = useState(0);
@@ -108,13 +115,9 @@ export default function ExploreScreen() {
 
   const blocked = mediaTab === 'movie' ? BLOCKED_MOVIE_IDS : BLOCKED_TV_IDS;
 
-  // genre, currentMediaTab, currentActiveTab parametrelerini direkt alıyor
-  // böylece stale state sorunu olmaz
   const buildEndpoint = (
-    pageNum: number,
-    genre: number,
-    currentMediaTab: 'movie' | 'tv',
-    currentActiveTab: string
+    pageNum: number, genre: number,
+    currentMediaTab: 'movie' | 'tv', currentActiveTab: string
   ) => {
     if (genre > 0) {
       return `discover/${currentMediaTab}?api_key=${API_KEY}&language=tr-TR&with_genres=${genre}&without_genres=10749&sort_by=vote_average.desc&vote_count.gte=500&include_adult=false&page=${pageNum}`;
@@ -129,8 +132,7 @@ export default function ExploreScreen() {
   };
 
   const fetchItems = async (
-    pageNum = 1,
-    reset = false,
+    pageNum = 1, reset = false,
     genre = selectedGenre,
     currentMediaTab: 'movie' | 'tv' = mediaTab,
     currentActiveTab = activeTab
@@ -152,7 +154,6 @@ export default function ExploreScreen() {
     finally { setLoading(false); setLoadingMore(false); }
   };
 
-  // Genre seçilince doğrudan genreId'yi fetchItems'a geçiriyoruz
   const handleGenreSelect = (genreId: number) => {
     setSelectedGenre(genreId);
     setPage(1);
@@ -189,7 +190,7 @@ export default function ExploreScreen() {
 
   const isSearchMode = searchQuery.trim().length > 0;
   const displayData  = isSearchMode ? searchResults : items;
-  const genres       = mediaTab === 'movie' ? MOVIE_GENRES : TV_GENRES;
+  const genres       = mediaTab === 'movie' ? MOVIE_GENRE_IDS : TV_GENRE_IDS;
 
   return (
     <View style={styles.container}>
@@ -199,10 +200,14 @@ export default function ExploreScreen() {
         <Ionicons name="search-outline" size={16} color="#DB7093" />
         <TextInput
           style={styles.searchInput}
-          placeholder={`${mediaTab === 'movie' ? 'Film' : 'Dizi'} ara...`}
+          placeholder={mediaTab === 'movie'
+            ? t('media.searchPlaceholder')    // ← çevrildi
+            : t('media.searchTVPlaceholder')  // ← çevrildi
+          }
           placeholderTextColor="#c0a0b0"
           value={searchQuery}
           onChangeText={setSearchQuery}
+          accessibilityLabel={t('a11y.searchInput')}
         />
         {searchQuery.length > 0 && (
           <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
@@ -217,19 +222,23 @@ export default function ExploreScreen() {
         <Pressable
           style={[styles.mediaTab, mediaTab === 'movie' && styles.mediaTabActive]}
           onPress={() => { setMediaTab('movie'); setSearchQuery(''); }}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: mediaTab === 'movie' }}
         >
           <Ionicons name="film-outline" size={16} color={mediaTab === 'movie' ? 'white' : '#DB7093'} />
           <Text style={[styles.mediaTabText, mediaTab === 'movie' && styles.mediaTabTextActive]}>
-            Filmler
+            {t('tabs.films')} {/* ← çevrildi */}
           </Text>
         </Pressable>
         <Pressable
           style={[styles.mediaTab, mediaTab === 'tv' && styles.mediaTabActive]}
           onPress={() => { setMediaTab('tv'); setSearchQuery(''); }}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: mediaTab === 'tv' }}
         >
           <Ionicons name="tv-outline" size={16} color={mediaTab === 'tv' ? 'white' : '#DB7093'} />
           <Text style={[styles.mediaTabText, mediaTab === 'tv' && styles.mediaTabTextActive]}>
-            Diziler
+            {t('tabs.series')} {/* ← çevrildi */}
           </Text>
         </Pressable>
       </View>
@@ -243,6 +252,8 @@ export default function ExploreScreen() {
                 key={tab.key}
                 style={[styles.tab, activeTab === tab.key && styles.tabActive]}
                 onPress={() => setActiveTab(tab.key)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: activeTab === tab.key }}
               >
                 <Ionicons
                   name={tab.icon as any}
@@ -250,7 +261,7 @@ export default function ExploreScreen() {
                   color={activeTab === tab.key ? 'white' : '#DB7093'}
                 />
                 <Text style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>
-                  {tab.label}
+                  {tab.label} {/* ← t() ile alınıyor */}
                 </Text>
               </Pressable>
             ))}
@@ -262,15 +273,19 @@ export default function ExploreScreen() {
             showsHorizontalScrollIndicator={false}
             style={styles.genreScroll}
             contentContainerStyle={styles.genreRow}
+            accessibilityLabel={t('a11y.sortButton')}
           >
             {genres.map((g) => (
               <Pressable
                 key={g.id}
                 style={[styles.genreChip, selectedGenre === g.id && styles.genreChipActive]}
                 onPress={() => handleGenreSelect(g.id)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: selectedGenre === g.id }}
+                accessibilityLabel={t(g.key)} // ← t() ile çevrildi
               >
                 <Text style={[styles.genreText, selectedGenre === g.id && styles.genreTextActive]}>
-                  {g.label}
+                  {t(g.key)} {/* ← çevrildi */}
                 </Text>
               </Pressable>
             ))}
@@ -278,11 +293,16 @@ export default function ExploreScreen() {
         </>
       )}
 
+      {/* Sonuç sayısı */}
       {isSearchMode && (
-        <Text style={styles.resultCount}>{searchResults.length} sonuç — "{searchQuery}"</Text>
+        <Text style={styles.resultCount}>
+          {searchResults.length} {t('media.resultsFound')} — "{searchQuery}" {/* ← çevrildi */}
+        </Text>
       )}
       {!isSearchMode && !loading && (
-        <Text style={styles.countText}>{items.length} içerik</Text>
+        <Text style={styles.countText}>
+          {items.length} {t('media.contentCount')} {/* ← çevrildi */}
+        </Text>
       )}
 
       {/* LİSTE */}
@@ -307,7 +327,9 @@ export default function ExploreScreen() {
             loadingMore ? (
               <View style={styles.loadingMore}>
                 <ActivityIndicator color="#DB7093" />
-                <Text style={styles.loadingMoreText}>Yükleniyor...</Text>
+                <Text style={styles.loadingMoreText}>
+                  {t('common.loadingMore')} {/* ← çevrildi */}
+                </Text>
               </View>
             ) : null
           }
@@ -315,12 +337,20 @@ export default function ExploreScreen() {
             <View style={styles.empty}>
               <Text style={styles.emptyIcon}>🔍</Text>
               <Text style={styles.emptyText}>
-                {isSearchMode ? `"${searchQuery}" için sonuç bulunamadı` : 'İçerik bulunamadı'}
+                {isSearchMode
+                  ? `"${searchQuery}" ${t('media.noSearchResults')}` // ← çevrildi
+                  : t('media.noContentFound')                         // ← çevrildi
+                }
               </Text>
             </View>
           }
           renderItem={({ item }) => (
-            <Pressable style={styles.card} onPress={() => navigateToDetail(item)}>
+            <Pressable
+              style={styles.card}
+              onPress={() => navigateToDetail(item)}
+              accessibilityRole="button"
+              accessibilityLabel={`${item.title}, ${item.imdb} ${t('common.rating')}`}
+            >
               <Image source={{ uri: item.img }} style={styles.poster} />
               <View style={styles.imdbBadge}>
                 <Text style={styles.imdbText}>⭐ {item.imdb}</Text>
@@ -340,39 +370,32 @@ export default function ExploreScreen() {
 
 const styles = StyleSheet.create({
   container:          { flex: 1, backgroundColor: '#FFF5F7', paddingHorizontal: 14, paddingTop: 12 },
-
   searchBar:          { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'white', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 11, marginBottom: 12, elevation: 3, borderWidth: 1, borderColor: '#FFD1DC' },
   searchInput:        { flex: 1, fontSize: 14, color: '#4A4A4A', padding: 0 },
-
   mediaTabRow:        { flexDirection: 'row', gap: 10, marginBottom: 12 },
   mediaTab:           { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 11, borderRadius: 14, borderWidth: 1.5, borderColor: '#FFD1DC', backgroundColor: 'white' },
   mediaTabActive:     { backgroundColor: '#DB7093', borderColor: '#DB7093' },
   mediaTabText:       { fontSize: 14, fontWeight: '600', color: '#DB7093' },
   mediaTabTextActive: { color: 'white' },
-
   tabRow:             { flexDirection: 'row', gap: 8, marginBottom: 12 },
   tab:                { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 9, borderRadius: 12, borderWidth: 1, borderColor: '#FFD1DC', backgroundColor: 'white' },
   tabActive:          { backgroundColor: '#DB7093', borderColor: '#DB7093' },
   tabText:            { fontSize: 12, color: '#DB7093', fontWeight: '600' },
   tabTextActive:      { color: 'white' },
-
   genreScroll:        { marginBottom: 12 },
   genreRow:           { flexDirection: 'row', gap: 10, paddingRight: 8, paddingVertical: 6, alignItems: 'center' },
   genreChip:          { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 22, backgroundColor: 'white', borderWidth: 1.5, borderColor: '#FFD1DC', minHeight: 38, justifyContent: 'center' },
   genreChipActive:    { backgroundColor: '#DB7093', borderColor: '#DB7093' },
   genreText:          { fontSize: 13, color: '#DB7093', fontWeight: '600' },
   genreTextActive:    { color: 'white' },
-
   resultCount:        { fontSize: 12, color: '#a07088', marginBottom: 8 },
   countText:          { fontSize: 11, color: '#c0a0b0', marginBottom: 8 },
-
   listContent:        { paddingBottom: 80, paddingTop: 4 },
   loadingMore:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16 },
   loadingMoreText:    { fontSize: 12, color: '#DB7093' },
   empty:              { alignItems: 'center', justifyContent: 'center', padding: 40, marginTop: 40 },
   emptyIcon:          { fontSize: 48, marginBottom: 12 },
   emptyText:          { fontSize: 14, color: '#c0a0b0', textAlign: 'center' },
-
   card:               { flex: 1, margin: 6, backgroundColor: 'white', borderRadius: 18, elevation: 4, overflow: 'hidden' },
   poster:             { width: '100%', height: 200, resizeMode: 'cover', backgroundColor: '#FFE0EB' },
   cardTitle:          { paddingHorizontal: 8, paddingTop: 8, textAlign: 'center', fontWeight: 'bold', color: '#4A4A4A', fontSize: 12 },

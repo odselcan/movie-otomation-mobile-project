@@ -1,4 +1,6 @@
 // app/(drawer)/(tabs)/series.tsx
+// i18n: Türkçe / İngilizce tam dil desteği
+
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
@@ -9,6 +11,7 @@ import {
   Text, TextInput, View,
 } from 'react-native';
 import { SkeletonPoster } from '../../../components/SkeletonCard';
+import { useI18n } from '../../../hooks/useI18n'; // ← i18n
 
 interface Series {
   id: string; title: string; img: string;
@@ -58,6 +61,8 @@ const extractYoutubeId = (input: string): string => {
 
 export default function SeriesScreen() {
   const router = useRouter();
+  const { t } = useI18n(); // ← hook
+
   const [series, setSeries]               = useState<Series[]>([]);
   const [loading, setLoading]             = useState(true);
   const [loadingMore, setLoadingMore]     = useState(false);
@@ -110,8 +115,9 @@ export default function SeriesScreen() {
       setPage(pageNum);
       setHasMore(pageNum < 3);
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    } catch (e) { Alert.alert('Hata', 'Diziler yuklenemedi.'); }
-    finally { setLoadingMore(false); }
+    } catch (e) {
+      Alert.alert(t('common.error'), t('media.seriesLoadError')); // ← çevrildi
+    } finally { setLoadingMore(false); }
   };
 
   const searchSeries = async (query: string) => {
@@ -129,7 +135,10 @@ export default function SeriesScreen() {
   };
 
   const handleSave = async () => {
-    if (!form.title) return Alert.alert('Uyari', 'Baslik zorunludur!');
+    if (!form.title) return Alert.alert(
+      t('common.warning'),        // ← çevrildi
+      t('media.titleRequired'),   // ← çevrildi
+    );
     const cleaned = { ...form, trailer: extractYoutubeId(form.trailer) };
     const updated = editingItem
       ? series.map(s => s.id === editingItem.id ? { ...cleaned, id: s.id } : s)
@@ -150,14 +159,16 @@ export default function SeriesScreen() {
   return (
     <View style={styles.container}>
 
+      {/* ARAMA */}
       <View style={styles.searchBar}>
         <Ionicons name="search-outline" size={16} color="#DB7093" />
         <TextInput
           style={styles.searchInput}
-          placeholder="Dizi ara..."
+          placeholder={t('media.searchTVPlaceholder')} // ← çevrildi
           placeholderTextColor="#c0a0b0"
           value={searchQuery}
           onChangeText={setSearchQuery}
+          accessibilityLabel={t('a11y.searchInput')}
         />
         {searchQuery.length > 0 && (
           <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
@@ -167,8 +178,17 @@ export default function SeriesScreen() {
         {searching && <ActivityIndicator size="small" color="#DB7093" />}
       </View>
 
-      {isSearchMode && <Text style={styles.resultCount}>{searchResults.length} sonuc - "{searchQuery}"</Text>}
-      {!isSearchMode && !loading && <Text style={styles.countText}>{series.length} dizi</Text>}
+      {/* Sayaçlar */}
+      {isSearchMode && (
+        <Text style={styles.resultCount}>
+          {searchResults.length} {t('media.resultsFound')} — "{searchQuery}" {/* ← çevrildi */}
+        </Text>
+      )}
+      {!isSearchMode && !loading && (
+        <Text style={styles.countText}>
+          {series.length} {t('tabs.series').toLowerCase()} {/* ← çevrildi */}
+        </Text>
+      )}
 
       {loading ? (
         <FlatList
@@ -191,7 +211,9 @@ export default function SeriesScreen() {
             loadingMore ? (
               <View style={styles.loadingMore}>
                 <ActivityIndicator color="#DB7093" />
-                <Text style={styles.loadingMoreText}>Yukleniyor...</Text>
+                <Text style={styles.loadingMoreText}>
+                  {t('common.loadingMore')} {/* ← çevrildi */}
+                </Text>
               </View>
             ) : null
           }
@@ -199,19 +221,26 @@ export default function SeriesScreen() {
             <View style={styles.empty}>
               <Text style={styles.emptyIcon}>📺</Text>
               <Text style={styles.emptyText}>
-                {isSearchMode ? `"${searchQuery}" icin sonuc bulunamadi` : 'Dizi bulunamadi'}
+                {isSearchMode
+                  ? `"${searchQuery}" ${t('media.noSearchResults')}` // ← çevrildi
+                  : t('media.noContentFound')                         // ← çevrildi
+                }
               </Text>
             </View>
           }
           renderItem={({ item }) => (
             <View style={styles.card}>
-              <Pressable onPress={() => router.push({
-                pathname: '/details/[id]',
-                params: {
-                  id: item.id, title: item.title, trailer: item.trailer,
-                  year: item.year, type: item.type, img: item.img, mediaType: 'tv',
-                },
-              })}>
+              <Pressable
+                onPress={() => router.push({
+                  pathname: '/details/[id]',
+                  params: {
+                    id: item.id, title: item.title, trailer: item.trailer,
+                    year: item.year, type: item.type, img: item.img, mediaType: 'tv',
+                  },
+                })}
+                accessibilityRole="button"
+                accessibilityLabel={`${item.title}, ${item.imdb} ${t('common.rating')}`}
+              >
                 <Image source={{ uri: item.img }} style={styles.poster} />
                 <View style={styles.imdbBadge}>
                   <Text style={styles.imdbText}>⭐ {item.imdb}</Text>
@@ -224,12 +253,11 @@ export default function SeriesScreen() {
                 style={styles.editBtn}
                 onPress={() => {
                   setEditingItem(item);
-                  setForm({
-                    title: item.title, img: item.img, trailer: item.trailer,
-                    imdb: item.imdb, type: item.type, year: item.year,
-                  });
+                  setForm({ title: item.title, img: item.img, trailer: item.trailer, imdb: item.imdb, type: item.type, year: item.year });
                   setModalVisible(true);
                 }}
+                accessibilityLabel={`${item.title} ${t('media.edit')}`}
+                accessibilityRole="button"
               >
                 <Ionicons name="pencil" size={14} color="white" />
               </Pressable>
@@ -238,32 +266,38 @@ export default function SeriesScreen() {
         />
       )}
 
-      <Pressable style={styles.fab} onPress={() => setModalVisible(true)}>
+      {/* FAB */}
+      <Pressable
+        style={styles.fab}
+        onPress={() => setModalVisible(true)}
+        accessibilityLabel={t('media.add')}
+        accessibilityRole="button"
+      >
         <Ionicons name="add" size={32} color="white" />
       </Pressable>
 
+      {/* Modal */}
       <Modal visible={modalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.modalContent}
-          >
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalContent}>
             <ScrollView showsVerticalScrollIndicator={false} style={{ width: '100%' }}>
-              <Text style={styles.modalHeader}>{editingItem ? 'Duzenle' : 'Yeni Ekle'}</Text>
-              <TextInput style={styles.input} placeholder="Dizi Adi" value={form.title} onChangeText={(t) => setForm({ ...form, title: t })} />
-              <TextInput style={styles.input} placeholder="Resim URL" value={form.img} onChangeText={(t) => setForm({ ...form, img: t })} />
-              <TextInput style={styles.input} placeholder="Youtube ID veya Link" value={form.trailer} onChangeText={(t) => setForm({ ...form, trailer: t })} />
+              <Text style={styles.modalHeader}>
+                {editingItem ? t('media.edit') : t('media.add')} {/* ← çevrildi */}
+              </Text>
+              <TextInput style={styles.input} placeholder={t('media.seriesName')} value={form.title} onChangeText={(v) => setForm({ ...form, title: v })} />
+              <TextInput style={styles.input} placeholder={t('media.imageUrl')} value={form.img} onChangeText={(v) => setForm({ ...form, img: v })} />
+              <TextInput style={styles.input} placeholder={t('media.youtubeLink')} value={form.trailer} onChangeText={(v) => setForm({ ...form, trailer: v })} />
               <View style={{ flexDirection: 'row', gap: 10 }}>
-                <TextInput style={[styles.input, { flex: 1 }]} placeholder="IMDb" value={form.imdb} onChangeText={(t) => setForm({ ...form, imdb: t })} keyboardType="numeric" />
-                <TextInput style={[styles.input, { flex: 1 }]} placeholder="Yil" value={form.year} onChangeText={(t) => setForm({ ...form, year: t })} keyboardType="numeric" />
+                <TextInput style={[styles.input, { flex: 1 }]} placeholder="IMDb" value={form.imdb} onChangeText={(v) => setForm({ ...form, imdb: v })} keyboardType="numeric" />
+                <TextInput style={[styles.input, { flex: 1 }]} placeholder={t('media.year')} value={form.year} onChangeText={(v) => setForm({ ...form, year: v })} keyboardType="numeric" />
               </View>
-              <TextInput style={styles.input} placeholder="Tur" value={form.type} onChangeText={(t) => setForm({ ...form, type: t })} />
+              <TextInput style={styles.input} placeholder={t('media.genre')} value={form.type} onChangeText={(v) => setForm({ ...form, type: v })} />
               <View style={styles.modalButtons}>
                 <Pressable style={[styles.btn, { backgroundColor: '#FFD1DC' }]} onPress={closeModal}>
-                  <Text style={{ color: '#DB7093', fontWeight: 'bold' }}>Iptal</Text>
+                  <Text style={{ color: '#DB7093', fontWeight: 'bold' }}>{t('common.cancel')}</Text> {/* ← çevrildi */}
                 </Pressable>
                 <Pressable style={[styles.btn, { backgroundColor: '#DB7093' }]} onPress={handleSave}>
-                  <Text style={{ color: 'white', fontWeight: 'bold' }}>Kaydet</Text>
+                  <Text style={{ color: 'white', fontWeight: 'bold' }}>{t('common.save')}</Text> {/* ← çevrildi */}
                 </Pressable>
               </View>
             </ScrollView>
