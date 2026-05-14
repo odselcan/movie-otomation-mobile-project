@@ -33,6 +33,7 @@ import MapView, {
   PROVIDER_GOOGLE,
   Region,
 } from 'react-native-maps';
+import { useI18n } from '../../hooks/useI18n'; // ← i18n
 
 // ─── Tipler ───────────────────────────────────────────────────────────────────
 type CinemaType =
@@ -54,6 +55,7 @@ interface Cinema {
   type: CinemaType;
   rating: string;
   desc: string;
+  descEn: string;  // ← ekle
   address: string;
   phone: string;
   price: string;
@@ -61,7 +63,6 @@ interface Cinema {
 }
 
 interface MapTypeOption {
-  label: string;
   emoji: string;
   value: MapType;
 }
@@ -81,76 +82,22 @@ const TYPE_COLORS: Record<string, string> = {
 
 // ─── Sinema verisi ─────────────────────────────────────────────────────────────
 const CINEMAS: Cinema[] = [
-  {
-    id: '1', title: 'Pembe Sinema', lat: 41.0082, lng: 28.9784,
-    type: 'Modern Salon', rating: '4.8',
-    desc: 'İstanbul\'un kalbinde modern sinema deneyimi.',
-    address: 'Sultanahmet, İstanbul', phone: '02125550101',
-    price: '80₺', nowPlaying: ['Dune: Part Two', 'Oppenheimer'],
-  },
-  {
-    id: '2', title: 'Kadıköy Film Evi', lat: 40.9901, lng: 29.0284,
-    type: 'Sanat Sineması', rating: '4.9',
-    desc: 'Bağımsız film festivali devam ediyor.',
-    address: 'Kadıköy, İstanbul', phone: '02165550202',
-    price: '65₺', nowPlaying: ['Past Lives', 'Anatomy of a Fall'],
-  },
-  {
-    id: '3', title: 'Beşiktaş Yıldız', lat: 41.0428, lng: 29.0075,
-    type: 'Öğrenci Dostu', rating: '4.5',
-    desc: 'Öğrenci kimliğiyle %30 indirim!',
-    address: 'Beşiktaş, İstanbul', phone: '02125550303',
-    price: '55₺', nowPlaying: ['Poor Things', 'The Zone of Interest'],
-  },
-  {
-    id: '4', title: 'Şişli Kristal', lat: 41.0602, lng: 28.9876,
-    type: 'IMAX Salon', rating: '4.7',
-    desc: 'Dev ekranda Dolby Atmos deneyimi.',
-    address: 'Şişli, İstanbul', phone: '02125550404',
-    price: '140₺', nowPlaying: ['Killers of the Flower Moon', 'Napoleon'],
-  },
-  {
-    id: '5', title: 'Üsküdar Gece', lat: 41.0231, lng: 29.0151,
-    type: 'Gece Sineması', rating: '4.6',
-    desc: 'Gece yarısı özel gösterimleri her Cuma!',
-    address: 'Üsküdar, İstanbul', phone: '02165550505',
-    price: '70₺', nowPlaying: ['Saltburn', 'May December'],
-  },
-  {
-    id: '6', title: 'Bakırköy Prens', lat: 40.9812, lng: 28.8702,
-    type: '4DX Salon', rating: '4.7',
-    desc: '4DX ile filmi hisset, sadece izleme!',
-    address: 'Bakırköy, İstanbul', phone: '02125550606',
-    price: '160₺', nowPlaying: ['Mission Impossible 8', 'Fast X'],
-  },
-  {
-    id: '7', title: 'Sarıyer Platin', lat: 41.1668, lng: 29.0580,
-    type: 'VIP Salon', rating: '4.9',
-    desc: 'Koltukta yemek servisi, VIP deneyim.',
-    address: 'Sarıyer, İstanbul', phone: '02125550707',
-    price: '250₺', nowPlaying: ['The Holdovers', 'Ferrari'],
-  },
-  {
-    id: '8', title: 'Ataşehir Park', lat: 40.9823, lng: 29.1275,
-    type: 'Aile Sineması', rating: '4.4',
-    desc: 'Çocuk dostu salonlar ve oyun alanı.',
-    address: 'Ataşehir, İstanbul', phone: '02165550808',
-    price: '60₺', nowPlaying: ['Wish', 'The Marvels'],
-  },
-  {
-    id: '9', title: 'Taksim Rüya', lat: 41.0369, lng: 28.9850,
-    type: 'Klasik Salon', rating: '4.6',
-    desc: '1970\'lerden kalma nostaljik atmosfer.',
-    address: 'Taksim, İstanbul', phone: '02125550909',
-    price: '50₺', nowPlaying: ['Casablanca (Klasik)', 'The Godfather (Klasik)'],
-  },
+  { id: '1', title: 'Pembe Sinema', lat: 41.0082, lng: 28.9784, type: 'Modern Salon', rating: '4.8', desc: 'İstanbul\'un kalbinde modern sinema deneyimi.', descEn: 'Modern cinema experience in the heart of Istanbul.', address: 'Sultanahmet, İstanbul', phone: '02125550101', price: '80₺', nowPlaying: ['Dune: Part Two', 'Oppenheimer'] },
+  { id: '2', title: 'Kadıköy Film Evi', lat: 40.9901, lng: 29.0284, type: 'Sanat Sineması', rating: '4.9', desc: 'Bağımsız film festivali devam ediyor.', descEn: 'Independent film festival ongoing.', address: 'Kadıköy, İstanbul', phone: '02165550202', price: '65₺', nowPlaying: ['Past Lives', 'Anatomy of a Fall'] },
+  { id: '3', title: 'Beşiktaş Yıldız', lat: 41.0428, lng: 29.0075, type: 'Öğrenci Dostu', rating: '4.5', desc: 'Öğrenci kimliğiyle %30 indirim!', descEn: '30% discount with student ID!', address: 'Beşiktaş, İstanbul', phone: '02125550303', price: '55₺', nowPlaying: ['Poor Things', 'The Zone of Interest'] },
+  { id: '4', title: 'Şişli Kristal', lat: 41.0602, lng: 28.9876, type: 'IMAX Salon', rating: '4.7', desc: 'Dev ekranda Dolby Atmos deneyimi.', descEn: 'Dolby Atmos experience on a giant screen.', address: 'Şişli, İstanbul', phone: '02125550404', price: '140₺', nowPlaying: ['Killers of the Flower Moon', 'Napoleon'] },
+  { id: '5', title: 'Üsküdar Gece', lat: 41.0231, lng: 29.0151, type: 'Gece Sineması', rating: '4.6', desc: 'Gece yarısı özel gösterimleri her Cuma!', descEn: 'Midnight special screenings every Friday!', address: 'Üsküdar, İstanbul', phone: '02165550505', price: '70₺', nowPlaying: ['Saltburn', 'May December'] },
+  { id: '6', title: 'Bakırköy Prens', lat: 40.9812, lng: 28.8702, type: '4DX Salon', rating: '4.7', desc: '4DX ile filmi hisset, sadece izleme!', descEn: 'Feel the movie with 4DX, not just watch!', address: 'Bakırköy, İstanbul', phone: '02125550606', price: '160₺', nowPlaying: ['Mission Impossible 8', 'Fast X'] },
+  { id: '7', title: 'Sarıyer Platin', lat: 41.1668, lng: 29.0580, type: 'VIP Salon', rating: '4.9', desc: 'Koltukta yemek servisi, VIP deneyim.', descEn: 'In-seat dining service, VIP experience.', address: 'Sarıyer, İstanbul', phone: '02125550707', price: '250₺', nowPlaying: ['The Holdovers', 'Ferrari'] },
+  { id: '8', title: 'Ataşehir Park', lat: 40.9823, lng: 29.1275, type: 'Aile Sineması', rating: '4.4', desc: 'Çocuk dostu salonlar ve oyun alanı.', descEn: 'Child-friendly halls and play areas.', address: 'Ataşehir, İstanbul', phone: '02165550808', price: '60₺', nowPlaying: ['Wish', 'The Marvels'] },
+  { id: '9', title: 'Taksim Rüya', lat: 41.0369, lng: 28.9850, type: 'Klasik Salon', rating: '4.6', desc: '1970\'lerden kalma nostaljik atmosfer.', descEn: 'Nostalgic atmosphere from the 1970s.', address: 'Taksim, İstanbul', phone: '02125550909', price: '50₺', nowPlaying: ['Casablanca (Klasik)', 'The Godfather (Klasik)'] },
 ];
 
 const MAP_TYPES: MapTypeOption[] = [
-  { label: 'Normal',  emoji: '🗺️', value: 'standard'  },
-  { label: 'Uydu',   emoji: '🛰️', value: 'satellite' },
-  { label: 'Arazi',  emoji: '⛰️', value: 'terrain'   },
-  { label: 'Hibrit', emoji: '🌍', value: 'hybrid'    },
+  { emoji: '🗺️', value: 'standard'  },
+  { emoji: '🛰️', value: 'satellite' },
+  { emoji: '⛰️', value: 'terrain'   },
+  { emoji: '🌍', value: 'hybrid'    },
 ];
 
 const ISTANBUL_REGION: Region = {
@@ -160,7 +107,7 @@ const ISTANBUL_REGION: Region = {
 
 const FAV_KEY = 'favorite_cinemas';
 
-// ─── Pure helper — component dışında ─────────────────────────────────────────
+// ─── Pure helper ──────────────────────────────────────────────────────────────
 function getDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -176,6 +123,18 @@ function getDistance(lat1: number, lng1: number, lat2: number, lng2: number): nu
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function MapScreen() {
   const router = useRouter();
+  const { t, isTurkish } = useI18n();
+  const CINEMA_TYPE_TR = React.useMemo(() => ({
+    'Modern Salon':   t('map.type_modern'),
+    'Sanat Sineması': t('map.type_art'),
+    'IMAX Salon':     t('map.type_imax'),
+    '4DX Salon':      t('map.type_4dx'),
+    'VIP Salon':      t('map.type_vip'),
+    'Aile Sineması':  t('map.type_family'),
+    'Öğrenci Dostu':  t('map.type_student'),
+    'Gece Sineması':  t('map.type_night'),
+    'Klasik Salon':   t('map.type_classic'),
+  }), [t]);
   const mapRef = useRef<MapView>(null);
 
   const [mapLoading, setMapLoading]           = useState(true);
@@ -188,7 +147,7 @@ export default function MapScreen() {
   const [showFilters, setShowFilters]         = useState(false);
   const [userLocation, setUserLocation]       = useState<{ lat: number; lng: number } | null>(null);
   const [showTip, setShowTip]                 = useState(true);
-  const [locationLoading, setLocationLoading] = useState(false); // ✅ YENİ
+  const [locationLoading, setLocationLoading] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -199,8 +158,8 @@ export default function MapScreen() {
   );
 
   useEffect(() => {
-    const t = setTimeout(() => setShowTip(false), 3500);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setShowTip(false), 3500);
+    return () => clearTimeout(timer);
   }, []);
 
   const filteredCinemas = CINEMAS.filter((c) => {
@@ -248,7 +207,7 @@ export default function MapScreen() {
       if (supported) {
         Linking.openURL(url);
       } else {
-        Alert.alert('Hata', 'Bu cihazda arama yapılamıyor.');
+        Alert.alert(t('common.error'), t('map.callNotSupported'));
       }
     });
   };
@@ -256,7 +215,7 @@ export default function MapScreen() {
   const handleAddContact = async (cinema: Cinema) => {
     const { status } = await Contacts.requestPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('İzin Gerekli', 'Rehbere eklemek için izin vermeniz gerekiyor.');
+      Alert.alert(t('common.warning'), t('map.contactPermission'));
       return;
     }
     try {
@@ -269,16 +228,16 @@ export default function MapScreen() {
         note: `${cinema.type} | ${cinema.price} | Puan: ${cinema.rating}`,
       };
       await Contacts.addContactAsync(contact);
-      Alert.alert('✅ Başarılı', `"${cinema.title}" rehbere eklendi!`);
+      Alert.alert('✅', `"${cinema.title}" ${t('map.contactAdded')}`);
     } catch (e) {
-      Alert.alert('Hata', 'Rehbere eklenemedi.');
+      Alert.alert(t('common.error'), t('map.contactFailed'));
     }
   };
 
   const handleSMS = async (cinema: Cinema) => {
     const isAvailable = await SMS.isAvailableAsync();
     if (!isAvailable) {
-      Alert.alert('Hata', 'Bu cihazda SMS gönderilemiyor.');
+      Alert.alert(t('common.error'), t('map.smsNotSupported'));
       return;
     }
     const message =
@@ -291,13 +250,12 @@ export default function MapScreen() {
     await SMS.sendSMSAsync([], message);
   };
 
-  // ✅ YENİ — En Yakın Sinema (component içinde, tüm state'lere erişebilir)
   const handleGetLocation = async () => {
     setLocationLoading(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('İzin Gerekli', 'Konum izni verilmedi.');
+        Alert.alert(t('common.warning'), t('map.locationPermission'));
         return;
       }
 
@@ -306,10 +264,8 @@ export default function MapScreen() {
       });
       const { latitude, longitude } = loc.coords;
 
-      // Circle + Polyline için state güncelle
       setUserLocation({ lat: latitude, lng: longitude });
 
-      // En yakın sinemayı bul (yerel değişkenle — state güncellenmesini bekleme)
       let minDist = Infinity;
       let nearest = CINEMAS[0];
       for (const cinema of CINEMAS) {
@@ -320,7 +276,6 @@ export default function MapScreen() {
         }
       }
 
-      // Seç ve haritayı oraya animasyonla götür
       setSelectedCinema(nearest);
       mapRef.current?.animateToRegion(
         {
@@ -333,12 +288,12 @@ export default function MapScreen() {
       );
 
       Alert.alert(
-        '📍 En Yakın Sinema',
-        `${nearest.title}\n(${minDist.toFixed(1)} km uzakta)`,
-        [{ text: 'Tamam' }]
+        t('map.nearestCinema'),
+        `${nearest.title}\n(${minDist.toFixed(1)} ${t('map.kmAway')})`,
+        [{ text: t('map.ok') }]
       );
     } catch (e) {
-      Alert.alert('Hata', 'Konum alınamadı.');
+      Alert.alert(t('common.error'), t('map.locationFailed'));
     } finally {
       setLocationLoading(false);
     }
@@ -353,7 +308,7 @@ export default function MapScreen() {
       {mapLoading && (
         <View style={styles.loaderContainer}>
           <ActivityIndicator size="large" color="#DB7093" />
-          <Text style={styles.loaderText}>Sinemalar Yükleniyor...</Text>
+          <Text style={styles.loaderText}>{t('map.loading')}</Text>
         </View>
       )}
 
@@ -416,15 +371,15 @@ export default function MapScreen() {
               <Callout tooltip onPress={() => setSelectedCinema(cinema)}>
                 <View style={styles.callout}>
                   <Text style={styles.calloutTitle} numberOfLines={1}>{cinema.title}</Text>
-                  <Text style={styles.calloutType}>{cinema.type}</Text>
+                  <Text style={styles.calloutType}>{CINEMA_TYPE_TR[cinema.type] ?? cinema.type}</Text>
                   <View style={styles.calloutRow}>
                     <Text style={styles.calloutRating}>⭐ {cinema.rating}</Text>
                     <Text style={styles.calloutPrice}>{cinema.price}</Text>
                   </View>
                   {dist !== null && (
-                    <Text style={styles.calloutDist}>📍 {dist.toFixed(1)} km uzakta</Text>
+                    <Text style={styles.calloutDist}>📍 {dist.toFixed(1)} {t('map.kmAway')}</Text>
                   )}
-                  <Text style={styles.calloutTap}>Detay için dokun →</Text>
+                  <Text style={styles.calloutTap}>{t('map.tapForDetail')}</Text>
                 </View>
               </Callout>
             </Marker>
@@ -438,7 +393,7 @@ export default function MapScreen() {
           <Ionicons name="search-outline" size={16} color="#DB7093" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Sinema veya tür ara..."
+            placeholder={t('map.searchPlaceholder')}
             placeholderTextColor="#c0a0b0"
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -478,13 +433,14 @@ export default function MapScreen() {
                 style={[styles.chip, active && { backgroundColor: color, borderColor: color }]}
                 onPress={() => toggleType(type)}
               >
-                <Text style={[styles.chipText, active && styles.chipTextActive]}>{type}</Text>
-              </Pressable>
+<Text style={[styles.chipText, active && styles.chipTextActive]}>
+  {CINEMA_TYPE_TR[type] ?? type}
+</Text>              </Pressable>
             );
           })}
           {activeTypes.length > 0 && (
             <Pressable style={[styles.chip, styles.chipClear]} onPress={() => setActiveTypes([])}>
-              <Text style={styles.chipClearText}>✕ Temizle</Text>
+              <Text style={styles.chipClearText}>✕ {t('map.clearFilter')}</Text>
             </Pressable>
           )}
         </ScrollView>
@@ -492,31 +448,26 @@ export default function MapScreen() {
 
       <View style={styles.counterBadge}>
         <Ionicons name="film-outline" size={13} color="#DB7093" />
-        <Text style={styles.counterText}>{filteredCinemas.length}/{CINEMAS.length} sinema</Text>
+        <Text style={styles.counterText}>{filteredCinemas.length}/{CINEMAS.length} {t('map.cinemaCount')}</Text>
       </View>
 
       {showTip && (
         <View style={styles.tooltip}>
-          <Text style={styles.tooltipText}>
-            💡 Marker'lara basarak detay görün, Callout ile hızlı bilgi alın
-          </Text>
+          <Text style={styles.tooltipText}>{t('map.tooltip')}</Text>
         </View>
       )}
 
       {/* FAB Grubu */}
       <View style={styles.fabGroup}>
-        {/* Harita türü */}
         <TouchableOpacity style={styles.fab} onPress={() => setMapTypeModal(true)}>
           <Text style={styles.fabEmoji}>{currentMapTypeOption.emoji}</Text>
-          <Text style={styles.fabLabel}>{currentMapTypeOption.label}</Text>
+          <Text style={styles.fabLabel}>{t(`map.mapType_${currentMapTypeOption.value}`)}</Text>
         </TouchableOpacity>
 
-        {/* Sıfırla */}
         <TouchableOpacity style={styles.fabIcon} onPress={resetMap}>
           <Ionicons name="refresh-outline" size={22} color="#DB7093" />
         </TouchableOpacity>
 
-        {/* ✅ YENİ — En Yakın Sinema */}
         <TouchableOpacity
           style={[styles.fabIcon, locationLoading && { opacity: 0.5 }]}
           onPress={handleGetLocation}
@@ -549,7 +500,7 @@ export default function MapScreen() {
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setMapTypeModal(false)}>
           <TouchableOpacity activeOpacity={1} style={styles.bottomSheet}>
             <View style={styles.dragHandle} />
-            <Text style={styles.menuTitle}>🗺️  Harita Türü Seç</Text>
+            <Text style={styles.menuTitle}>{t('map.mapTypeTitle')}</Text>
             {MAP_TYPES.map((mt) => (
               <TouchableOpacity
                 key={mt.value}
@@ -557,7 +508,9 @@ export default function MapScreen() {
                 onPress={() => { setMapType(mt.value); setMapTypeModal(false); }}
               >
                 <Text style={styles.mapTypeEmoji}>{mt.emoji}</Text>
-                <Text style={[styles.mapTypeLabel, mapType === mt.value && styles.mapTypeLabelActive]}>{mt.label}</Text>
+                <Text style={[styles.mapTypeLabel, mapType === mt.value && styles.mapTypeLabelActive]}>
+                  {t(`map.mapType_${mt.value}`)}
+                </Text>
                 {mapType === mt.value && <Ionicons name="checkmark-circle" size={20} color="#DB7093" />}
               </TouchableOpacity>
             ))}
@@ -581,7 +534,7 @@ export default function MapScreen() {
                     <View style={[styles.sheetColorBar, { backgroundColor: color }]} />
                     <View style={{ flex: 1 }}>
                       <Text style={styles.sheetTitle}>{selectedCinema.title}</Text>
-                      <Text style={styles.sheetType}>{selectedCinema.type}</Text>
+<Text style={styles.sheetType}>{CINEMA_TYPE_TR[selectedCinema.type] ?? selectedCinema.type}</Text>
                     </View>
                     <Pressable style={styles.favBtn} onPress={() => toggleFav(selectedCinema.id)}>
                       <Ionicons name={isFav ? 'heart' : 'heart-outline'} size={24} color={isFav ? '#DB7093' : '#ccc'} />
@@ -609,10 +562,12 @@ export default function MapScreen() {
                   </View>
 
                   <View style={styles.descBox}>
-                    <Text style={styles.descText}>{selectedCinema.desc}</Text>
+                    <Text style={styles.descText}>
+                  {isTurkish ? selectedCinema.desc : selectedCinema.descEn}
+                    </Text>
                   </View>
 
-                  <Text style={styles.nowPlayingLabel}>🎬 Şu an gösterimde:</Text>
+                  <Text style={styles.nowPlayingLabel}>{t('map.nowPlaying')}</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                     <View style={styles.nowPlayingRow}>
                       {selectedCinema.nowPlaying.map((film) => (
@@ -630,7 +585,7 @@ export default function MapScreen() {
                       onPress={() => handleCall(selectedCinema)}
                     >
                       <Ionicons name="call-outline" size={18} color="white" />
-                      <Text style={styles.actionBtnText}>Ara</Text>
+                      <Text style={styles.actionBtnText}>{t('map.call')}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -638,7 +593,7 @@ export default function MapScreen() {
                       onPress={() => handleAddContact(selectedCinema)}
                     >
                       <Ionicons name="person-add-outline" size={18} color="white" />
-                      <Text style={styles.actionBtnText}>Rehber</Text>
+                      <Text style={styles.actionBtnText}>{t('map.contacts')}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -646,7 +601,7 @@ export default function MapScreen() {
                       onPress={() => handleSMS(selectedCinema)}
                     >
                       <Ionicons name="chatbubble-outline" size={18} color="white" />
-                      <Text style={styles.actionBtnText}>SMS</Text>
+                      <Text style={styles.actionBtnText}>{t('map.sms')}</Text>
                     </TouchableOpacity>
                   </View>
 
@@ -657,14 +612,14 @@ export default function MapScreen() {
                       onPress={() => setSelectedCinema(null)}
                     >
                       <Ionicons name="close-outline" size={16} color="#DB7093" />
-                      <Text style={styles.sheetBtnSecText}>Kapat</Text>
+                      <Text style={styles.sheetBtnSecText}>{t('map.close')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.sheetBtn, styles.sheetBtnPrimary]}
                       onPress={() => { setSelectedCinema(null); router.push('/(drawer)/(tabs)'); }}
                     >
                       <Ionicons name="ticket-outline" size={16} color="white" />
-                      <Text style={styles.sheetBtnText}>Bilet Al</Text>
+                      <Text style={styles.sheetBtnText}>{t('map.buyTicket')}</Text>
                     </TouchableOpacity>
                   </View>
                 </>

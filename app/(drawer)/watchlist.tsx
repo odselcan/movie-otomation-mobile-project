@@ -14,15 +14,10 @@ import Pagination from '../../components/Pagination';
 import RatingModal from '../../components/RatingModal';
 import SearchBar from '../../components/SearchBar';
 import SkeletonCard from '../../components/SkeletonCard';
+import { useI18n } from '../../hooks/useI18n'; // ← i18n
 import { MediaItem, useMediaStorage } from '../../hooks/useStorage';
 
 type SortKey = 'addedAt' | 'title' | 'year';
-
-const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: 'addedAt', label: '🕐 Eklenme' },
-  { key: 'title',   label: '🔤 İsim'    },
-  { key: 'year',    label: '📅 Yıl'     },
-];
 
 interface WatchlistItem extends MediaItem {
   watched?: boolean;
@@ -32,14 +27,23 @@ const SKELETON_COUNT = 5;
 
 export default function WatchlistScreen() {
   const router = useRouter();
+  const { t } = useI18n(); // ← hook
+
+  // SORT_OPTIONS component içinde — t() kullanabilmek için
+  const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+    { key: 'addedAt', label: `🕐 ${t('favorites.sortByDate')}` },
+    { key: 'title',   label: `🔤 ${t('favorites.sortByTitle')}` },
+    { key: 'year',    label: `📅 ${t('favorites.sortByYear')}` },
+  ];
+
   const { items, loading, error, load, upsert, remove, searchItems, getPage } =
     useMediaStorage('watchlist_data');
 
-  const [searchQuery, setSearchQuery]     = useState('');
-  const [sortKey, setSortKey]             = useState<SortKey>('addedAt');
-  const [currentPage, setCurrentPage]     = useState(0);
-  const [ratingModal, setRatingModal]     = useState(false);
-  const [selectedItem, setSelectedItem]   = useState<WatchlistItem | null>(null);
+  const [searchQuery, setSearchQuery]         = useState('');
+  const [sortKey, setSortKey]                 = useState<SortKey>('addedAt');
+  const [currentPage, setCurrentPage]         = useState(0);
+  const [ratingModal, setRatingModal]         = useState(false);
+  const [selectedItem, setSelectedItem]       = useState<WatchlistItem | null>(null);
   const [showPendingOnly, setShowPendingOnly] = useState(false);
 
   useFocusEffect(
@@ -72,12 +76,12 @@ export default function WatchlistScreen() {
 
   const confirmRemove = (item: WatchlistItem) => {
     Alert.alert(
-      'Listeden Çıkar',
-      `"${item.title}" izleme listesinden kaldırılsın mı?`,
+      t('watchlist.removeTitle'),
+      `"${item.title}" ${t('watchlist.removeConfirm')}`,
       [
-        { text: 'İptal', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Kaldır', style: 'destructive',
+          text: t('watchlist.remove'), style: 'destructive',
           onPress: () => {
             remove(item.id);
             if (pageData.length === 1 && currentPage > 0) setCurrentPage(currentPage - 1);
@@ -98,36 +102,36 @@ export default function WatchlistScreen() {
   // SMS
   const sendWatchlistSMS = async () => {
     if (items.length === 0) {
-      Alert.alert('Boş Liste', 'İzleme listesi boş.');
+      Alert.alert(t('favorites.emptyList'), t('watchlist.emptyListMsg'));
       return;
     }
     const available = await SMS.isAvailableAsync();
     if (!available) {
-      Alert.alert('Hata', 'Bu cihazda SMS gönderilemıyor.');
+      Alert.alert(t('common.error'), t('map.smsNotSupported'));
       return;
     }
 
-    const watchedItems   = (items as WatchlistItem[]).filter(i => i.watched);
-    const pendingItems   = (items as WatchlistItem[]).filter(i => !i.watched);
+    const watchedItems = (items as WatchlistItem[]).filter(i => i.watched);
+    const pendingItems = (items as WatchlistItem[]).filter(i => !i.watched);
 
     const formatItem = (item: WatchlistItem, i: number) =>
       `${i + 1}. ${item.title} (${item.year})${item.userRating > 0 ? ` ⭐${item.userRating}/10` : ''}`;
 
-    let mesaj = `📋 İzleme Listem\n━━━━━━━━━━━━━━━━\n`;
+    let mesaj = `📋 ${t('watchlist.smsTitle')}\n━━━━━━━━━━━━━━━━\n`;
 
     if (pendingItems.length > 0) {
-      mesaj += `⏳ Bekleyenler (${pendingItems.length}):\n`;
+      mesaj += `⏳ ${t('watchlist.pending')} (${pendingItems.length}):\n`;
       mesaj += pendingItems.slice(0, 10).map(formatItem).join('\n');
       mesaj += '\n\n';
     }
 
     if (watchedItems.length > 0) {
-      mesaj += `✅ İzlenenler (${watchedItems.length}):\n`;
+      mesaj += `✅ ${t('watchlist.watched')} (${watchedItems.length}):\n`;
       mesaj += watchedItems.slice(0, 10).map(formatItem).join('\n');
       mesaj += '\n';
     }
 
-    mesaj += `━━━━━━━━━━━━━━━━\nToplam: ${items.length} içerik`;
+    mesaj += `━━━━━━━━━━━━━━━━\n${t('favorites.smsTotal')}: ${items.length} ${t('favorites.smsContent')}`;
 
     await SMS.sendSMSAsync([], mesaj);
   };
@@ -138,7 +142,7 @@ export default function WatchlistScreen() {
         <Text style={styles.errorIcon}>⚠️</Text>
         <Text style={styles.errorText}>{error}</Text>
         <Pressable style={styles.retryBtn} onPress={load}>
-          <Text style={styles.retryText}>Tekrar Dene</Text>
+          <Text style={styles.retryText}>{t('common.retry')}</Text>
         </Pressable>
       </View>
     );
@@ -151,11 +155,11 @@ export default function WatchlistScreen() {
       <SearchBar
         value={searchQuery}
         onChangeText={handleSearch}
-        placeholder="İzleme listesinde ara..."
+        placeholder={t('watchlist.searchPlaceholder')}
       />
 
       {searchQuery.length > 0 && (
-        <Text style={styles.resultCount}>{filteredSorted.length} sonuç</Text>
+        <Text style={styles.resultCount}>{filteredSorted.length} {t('media.resultsFound')}</Text>
       )}
 
       {/* SORT + FİLTRE + SMS */}
@@ -208,12 +212,12 @@ export default function WatchlistScreen() {
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyIcon}>{searchQuery ? '🔍' : '📝'}</Text>
           <Text style={styles.emptyText}>
-            {searchQuery ? 'Sonuç bulunamadı' : 'İzleme listesi boş'}
+            {searchQuery ? t('media.noSearchResults') : t('watchlist.empty')}
           </Text>
           <Text style={styles.emptySubText}>
             {searchQuery
-              ? `"${searchQuery}" eşleşmedi.`
-              : 'Detay sayfasından 📌 butonuna basarak ekleyin'}
+              ? `"${searchQuery}" ${t('favorites.noMatch')}`
+              : t('watchlist.emptyHint')}
           </Text>
         </View>
       ) : (
@@ -253,7 +257,7 @@ export default function WatchlistScreen() {
                       color={wItem.watched ? 'white' : '#DB7093'}
                     />
                     <Text style={[styles.watchedText, wItem.watched && styles.watchedTextDone]}>
-                      {wItem.watched ? 'İzlendi ✓' : 'İzlendi olarak işaretle'}
+                      {wItem.watched ? t('watchlist.watched') + ' ✓' : t('watchlist.markWatched')}
                     </Text>
                   </Pressable>
                 </View>
@@ -266,7 +270,7 @@ export default function WatchlistScreen() {
             onPageChange={setCurrentPage}
           />
           <Text style={styles.pageInfo}>
-            {filteredSorted.length} içerik  •  Sayfa {safePage + 1}/{totalPages}
+            {filteredSorted.length} {t('favorites.smsContent')} • {t('favorites.page')} {safePage + 1}/{totalPages}
           </Text>
         </>
       )}

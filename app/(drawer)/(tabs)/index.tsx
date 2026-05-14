@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { Accelerometer } from 'expo-sensors';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState,useCallback} from 'react';
 import {
   ActivityIndicator, Alert, Animated, FlatList, Image,
   KeyboardAvoidingView, Modal, Platform, Pressable,
@@ -13,13 +13,14 @@ import {
 } from 'react-native';
 import { SkeletonPoster } from '../../../components/SkeletonCard';
 import { useI18n } from '../../../hooks/useI18n'; // ← i18n import
+import { useFocusEffect, useNavigation,} from 'expo-router';
 
 interface Movie {
   id: string; title: string; img: string;
   imdb: string; year: string; type: string; trailer: string;
 }
 
-const API_KEY = process.env.EXPO_PUBLIC_TMDB_API_KEY ?? '';
+import { API_KEY } from '../../../services/tmdb';
 const IMAGE_BASE = 'https://image.tmdb.org/t/p/w500';
 const STORAGE_KEY = 'movies_data_v7';
 
@@ -64,7 +65,14 @@ const extractYoutubeId = (input: string): string => {
 
 export default function MoviesScreen() {
   const router = useRouter();
-  const { t } = useI18n(); // ← hook
+  const { t } = useI18n(); 
+  const navigation = useNavigation();
+
+useFocusEffect(
+  useCallback(() => {
+    navigation.getParent()?.setOptions({ title: t('tabs.films') });
+  }, [t])
+);
 
   const [movies, setMovies]               = useState<Movie[]>([]);
   const [loading, setLoading]             = useState(true);

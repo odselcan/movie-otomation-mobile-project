@@ -12,13 +12,16 @@ import {
 } from 'react-native';
 import { SkeletonPoster } from '../../../components/SkeletonCard';
 import { useI18n } from '../../../hooks/useI18n'; // ← i18n
+// Mevcut importlara ekle:
+import { useFocusEffect, useNavigation } from 'expo-router';
+import { useCallback } from 'react'; // zaten React'tan geliyorsa React.useCallback da olur
 
 interface Series {
   id: string; title: string; img: string;
   imdb: string; year: string; type: string; trailer: string;
 }
 
-const API_KEY = process.env.EXPO_PUBLIC_TMDB_API_KEY ?? '';
+import { API_KEY } from '../../../services/tmdb';
 const IMAGE_BASE = 'https://image.tmdb.org/t/p/w500';
 const STORAGE_KEY = 'series_data_v6';
 
@@ -62,6 +65,12 @@ const extractYoutubeId = (input: string): string => {
 export default function SeriesScreen() {
   const router = useRouter();
   const { t } = useI18n(); // ← hook
+  const navigation = useNavigation();
+  useFocusEffect(
+  useCallback(() => {
+  navigation.getParent()?.setOptions({ title: t('tabs.series') });
+    }, [t])
+);
 
   const [series, setSeries]               = useState<Series[]>([]);
   const [loading, setLoading]             = useState(true);

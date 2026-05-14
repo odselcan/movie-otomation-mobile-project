@@ -46,6 +46,12 @@ export default function DrawerLayout() {
           drawerActiveTintColor: '#DB7093',
           drawerStyle: { backgroundColor: '#FFF5F7' },
           headerRight: () => <HeaderRight />,
+           headerTitleAlign: 'left',
+  headerTitleContainerStyle: {
+  left: 50,    // hamburger genişliği
+  right: 120,  // TR + EN + brightness genişliği
+},
+  headerTitleStyle: { fontSize: 16, fontWeight: '700', color: '#DB7093' },
         }}
       >
         <Drawer.Screen

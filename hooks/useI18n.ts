@@ -1,40 +1,19 @@
-// hooks/useI18n.ts
-// Çoklu dil desteği — Türkçe & İngilizce
-// expo-localization ile cihaz dilini otomatik algılar
-// RTL desteği dahil
-
-import { getLocales } from 'expo-localization';
-import { I18n } from 'i18n-js';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react'; // useEffect, useState kaldırıldı
 import { I18nManager } from 'react-native';
-import en from '../locales/en';
-import tr from '../locales/tr';
+import {
+  SUPPORTED_LOCALES,
+  SupportedLocale,
+  i18n,
+  useLanguageStore,
+} from '../store/languageStore';
 
-// ─── i18n instance ────────────────────────────────────────────────────────────
-const i18n = new I18n({ tr, en });
-
-// Desteklenen diller
-export type SupportedLocale = 'tr' | 'en';
-export const SUPPORTED_LOCALES: SupportedLocale[] = ['tr', 'en'];
-
-// Cihaz dilini al, desteklenmiyorsa Türkçe varsayılan
-function getDeviceLocale(): SupportedLocale {
-  const deviceLocales = getLocales();
-  for (const locale of deviceLocales) {
-    const lang = locale.languageCode as SupportedLocale;
-    if (SUPPORTED_LOCALES.includes(lang)) return lang;
-  }
-  return 'tr'; // varsayılan
-}
-
-// ─── RTL Yardımcıları ─────────────────────────────────────────────────────────
+// ─── RTL, formatDate, formatNumber — HİÇBİR ŞEY DEĞİŞMEDİ ──────────────────
 const RTL_LOCALES = ['ar', 'he', 'fa', 'ur'];
 
 export function isRTL(locale: string): boolean {
   return RTL_LOCALES.some((rtl) => locale.startsWith(rtl));
 }
 
-// ─── Tarih Formatlama ─────────────────────────────────────────────────────────
 export function formatLocalDate(dateStr: string, locale: SupportedLocale): string {
   if (!dateStr) return '';
   const date = new Date(dateStr);
@@ -46,30 +25,15 @@ export function formatLocalDate(dateStr: string, locale: SupportedLocale): strin
   });
 }
 
-// ─── Sayı Formatlama ──────────────────────────────────────────────────────────
 export function formatLocalNumber(num: number, locale: SupportedLocale): string {
   return new Intl.NumberFormat(locale === 'tr' ? 'tr-TR' : 'en-US').format(num);
 }
 
-// ─── Hook ─────────────────────────────────────────────────────────────────────
+// ─── Hook — SADECE STATE KAYNAĞI DEĞİŞTİ ─────────────────────────────────────
 export function useI18n() {
-  const [locale, setLocale] = useState<SupportedLocale>(getDeviceLocale);
+  // ↓ useState yerine Zustand store — tüm componentler aynı locale'i okur
+  const { locale, setLocale } = useLanguageStore();
 
-  // Dil değişince i18n ve RTL güncelle
-  useEffect(() => {
-    i18n.locale = locale;
-    i18n.enableFallback = true;
-    i18n.defaultLocale = 'tr';
-
-    // RTL desteği
-    const rtl = isRTL(locale);
-    if (I18nManager.isRTL !== rtl) {
-      I18nManager.allowRTL(rtl);
-      I18nManager.forceRTL(rtl);
-    }
-  }, [locale]);
-
-  // Çeviri fonksiyonu
   const t = useCallback(
     (key: string, options?: Record<string, unknown>): string => {
       return i18n.t(key, options);
@@ -77,27 +41,32 @@ export function useI18n() {
     [locale]
   );
 
-  // Dil değiştir
-  const changeLocale = useCallback((newLocale: SupportedLocale) => {
-    setLocale(newLocale);
-    i18n.locale = newLocale;
-  }, []);
-
-  // Mevcut dil Türkçe mi?
-  const isTurkish = locale === 'tr';
+  const changeLocale = useCallback(
+    (newLocale: SupportedLocale) => {
+      const rtl = isRTL(newLocale);
+      if (I18nManager.isRTL !== rtl) {
+        I18nManager.allowRTL(rtl);
+        I18nManager.forceRTL(rtl);
+      }
+      setLocale(newLocale); // ← store güncellenir, tüm componentler re-render olur
+    },
+    [setLocale]
+  );
 
   return {
     locale,
     t,
     changeLocale,
-    isTurkish,
+    isTurkish: locale === 'tr',
     isRTL: isRTL(locale),
     formatDate: (dateStr: string) => formatLocalDate(dateStr, locale),
     formatNumber: (num: number) => formatLocalNumber(num, locale),
   };
 }
 
-// ─── Singleton (Hook dışında kullanmak için) ──────────────────────────────────
 export function translate(key: string, options?: Record<string, unknown>): string {
   return i18n.t(key, options);
 }
+
+export { SUPPORTED_LOCALES };
+export type { SupportedLocale };

@@ -2,14 +2,33 @@
 // i18n: Türkçe / İngilizce tam dil desteği
 
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+
 import {
-  ActivityIndicator, FlatList, Image, Pressable,
-  ScrollView, StyleSheet, Text, TextInput, View,
+  useFocusEffect,
+  useNavigation,
+  useRouter,
+} from 'expo-router';
+
+import React, {
+  useCallback,
+  useEffect,
+  useState,
+} from 'react';
+
+import {
+  ActivityIndicator,
+  FlatList,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
+
 import { SkeletonPoster } from '../../../components/SkeletonCard';
-import { useI18n } from '../../../hooks/useI18n'; // ← i18n
+import { useI18n } from '../../../hooks/useI18n';
 
 interface MediaItem {
   id: string; title: string; img: string;
@@ -17,7 +36,7 @@ interface MediaItem {
   trailer: string; mediaType: 'movie' | 'tv';
 }
 
-const API_KEY = process.env.EXPO_PUBLIC_TMDB_API_KEY ?? '';
+import { API_KEY } from '../../../services/tmdb';
 const IMAGE_BASE = 'https://image.tmdb.org/t/p/w500';
 
 const BLOCKED_MOVIE_IDS = new Set([27205, 550, 680, 497, 562, 18491, 11216, 423108, 631842, 361743]);
@@ -80,7 +99,13 @@ function toMediaItem(item: any, mediaType: 'movie' | 'tv'): MediaItem {
 export default function ExploreScreen() {
   const router = useRouter();
   const { t } = useI18n(); // ← hook
+  const navigation = useNavigation();
 
+   useFocusEffect(
+    useCallback(() => {
+    navigation.getParent()?.setOptions({ title: t('tabs.explore') });
+  }, [t])
+);
   // TABS — component içinde tanımlı, t() kullanabiliyor
   const TABS = [
     { key: 'toprated', label: t('media.topRated'), icon: 'star-outline'     },

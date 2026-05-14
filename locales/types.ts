@@ -46,17 +46,36 @@ export interface Translations {
     sortByDate: string; sortByRating: string; sortByTitle: string;
     shareList: string; shareMessage: string; rateThis: string;
     yourRating: string; note: string; addNote: string;
+    removeTitle: string; removeConfirm: string; remove: string;
+    emptyList: string; emptyListMsg: string; smsTitle: string;
+    smsTotal: string; smsContent: string; searchPlaceholder: string;
+    noMatch: string; page: string; sortByYear: string;
   };
   watchlist: {
     title: string; empty: string; emptyHint: string; watched: string;
     pending: string; markWatched: string; markPending: string;
     shareWatched: string; sharePending: string;
+    removeTitle: string; removeConfirm: string; remove: string;
+    emptyListMsg: string; smsTitle: string; searchPlaceholder: string;
   };
   map: {
-    title: string; nearest: string; findNearest: string; getDirections: string;
-    addContact: string; sendSMS: string; filterByGenre: string;
-    favoriteCinema: string; distance: string; km: string;
-  };
+  title: string; nearest: string; findNearest: string; getDirections: string;
+  addContact: string; sendSMS: string; filterByGenre: string;
+  favoriteCinema: string; distance: string; km: string;
+  loading: string; searchPlaceholder: string; clearFilter: string;
+  cinemaCount: string; tooltip: string; mapTypeTitle: string;
+  mapType_standard: string; mapType_satellite: string;
+  mapType_terrain: string; mapType_hybrid: string;
+  kmAway: string; tapForDetail: string; nowPlaying: string;
+  call: string; contacts: string; sms: string; close: string;
+  buyTicket: string; nearestCinema: string; ok: string;
+  callNotSupported: string; contactPermission: string;
+  contactAdded: string; contactFailed: string;
+  smsNotSupported: string; locationPermission: string; locationFailed: string;
+  type_modern: string; type_art: string; type_imax: string; type_4dx: string;
+  type_vip: string; type_family: string; type_student: string;
+  type_night: string; type_classic: string;
+};
   sensors: {
     title: string; accelerometer: string; location: string; battery: string;
     network: string; brightness: string; latitude: string; longitude: string;

@@ -63,16 +63,16 @@ export default function LanguageSwitcher() {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 4,           // 6 → 4
     alignItems: 'center',
   },
   btn: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 16,
+    paddingHorizontal: 7,  // 10 → 7
+    paddingVertical: 3,    // 5 → 3
+    borderRadius: 12,      // 16 → 12
     backgroundColor: '#FFD1DC',
-    minWidth: 44,   // WCAG: min dokunma alanı 44x44 pt
-    minHeight: 44,
+    minWidth: 38,          // 44 → 38
+    minHeight: 32,         // 44 → 32
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#DB7093',
   },
   label: {
-    fontSize: 12,
+    fontSize: 11,   // 12 → 11
     fontWeight: '600',
     color: '#DB7093',
   },

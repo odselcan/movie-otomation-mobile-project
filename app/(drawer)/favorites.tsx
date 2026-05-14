@@ -14,21 +14,25 @@ import Pagination from '../../components/Pagination';
 import RatingModal from '../../components/RatingModal';
 import SearchBar from '../../components/SearchBar';
 import SkeletonCard from '../../components/SkeletonCard';
+import { useI18n } from '../../hooks/useI18n'; // ← i18n
 import { MediaItem, useMediaStorage } from '../../hooks/useStorage';
 
 type SortKey = 'addedAt' | 'userRating' | 'title' | 'year';
-
-const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: 'addedAt',    label: '🕐 Eklenme' },
-  { key: 'userRating', label: '⭐ Puan'    },
-  { key: 'title',      label: '🔤 İsim'    },
-  { key: 'year',       label: '📅 Yıl'     },
-];
 
 const SKELETON_COUNT = 5;
 
 export default function FavoritesScreen() {
   const router = useRouter();
+  const { t } = useI18n(); // ← hook
+
+  // SORT_OPTIONS component içinde — t() kullanabilmek için
+  const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+    { key: 'addedAt',    label: `🕐 ${t('favorites.sortByDate')}` },
+    { key: 'userRating', label: `⭐ ${t('favorites.sortByRating')}` },
+    { key: 'title',      label: `🔤 ${t('favorites.sortByTitle')}` },
+    { key: 'year',       label: `📅 ${t('favorites.sortByYear')}` },
+  ];
+
   const { items, loading, error, load, upsert, remove, searchItems, getPage } =
     useMediaStorage('favorites_data');
 
@@ -65,12 +69,12 @@ export default function FavoritesScreen() {
 
   const confirmRemove = (item: MediaItem) => {
     Alert.alert(
-      'Favoriden Çıkar',
-      `"${item.title}" favorilerden kaldırılsın mı?`,
+      t('favorites.removeTitle'),
+      `"${item.title}" ${t('favorites.removeConfirm')}`,
       [
-        { text: 'İptal', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Kaldır', style: 'destructive',
+          text: t('favorites.remove'), style: 'destructive',
           onPress: () => {
             remove(item.id);
             if (pageData.length === 1 && currentPage > 0) setCurrentPage(currentPage - 1);
@@ -92,28 +96,28 @@ export default function FavoritesScreen() {
   // ── SMS: Tüm favori listesini gönder ─────────────────────────
   const sendFavoritesSMS = async () => {
     if (items.length === 0) {
-      Alert.alert('Boş Liste', 'Favorilere eklenmiş içerik yok.');
+      Alert.alert(t('favorites.emptyList'), t('favorites.emptyListMsg'));
       return;
     }
     const available = await SMS.isAvailableAsync();
     if (!available) {
-      Alert.alert('Hata', 'Bu cihazda SMS gönderilemıyor.');
+      Alert.alert(t('common.error'), t('map.smsNotSupported'));
       return;
     }
 
     const liste = items
-      .slice(0, 20) // çok uzun olmasın
+      .slice(0, 20)
       .map((item, i) =>
         `${i + 1}. ${item.title} (${item.year})${item.userRating > 0 ? ` ⭐${item.userRating}/10` : ''}`
       )
       .join('\n');
 
     const mesaj =
-      `🎬 Favori Film & Dizi Listem\n` +
+      `🎬 ${t('favorites.smsTitle')}\n` +
       `━━━━━━━━━━━━━━━━\n` +
       `${liste}\n` +
       `━━━━━━━━━━━━━━━━\n` +
-      `Toplam: ${items.length} içerik`;
+      `${t('favorites.smsTotal')}: ${items.length} ${t('favorites.smsContent')}`;
 
     await SMS.sendSMSAsync([], mesaj);
   };
@@ -124,7 +128,7 @@ export default function FavoritesScreen() {
         <Text style={styles.errorIcon}>⚠️</Text>
         <Text style={styles.errorText}>{error}</Text>
         <Pressable style={styles.retryBtn} onPress={load}>
-          <Text style={styles.retryText}>Tekrar Dene</Text>
+          <Text style={styles.retryText}>{t('common.retry')}</Text>
         </Pressable>
       </View>
     );
@@ -135,11 +139,11 @@ export default function FavoritesScreen() {
       <SearchBar
         value={searchQuery}
         onChangeText={handleSearch}
-        placeholder="Film veya dizi ara..."
+        placeholder={t('favorites.searchPlaceholder')}
       />
 
       {searchQuery.length > 0 && (
-        <Text style={styles.resultCount}>{filteredSorted.length} sonuç bulundu</Text>
+        <Text style={styles.resultCount}>{filteredSorted.length} {t('media.resultsFound')}</Text>
       )}
 
       {/* SORT + SMS BUTONU */}
@@ -177,12 +181,12 @@ export default function FavoritesScreen() {
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyIcon}>{searchQuery ? '🔍' : '💔'}</Text>
           <Text style={styles.emptyText}>
-            {searchQuery ? 'Sonuç bulunamadı' : 'Henüz favori eklenmedi'}
+            {searchQuery ? t('media.noSearchResults') : t('favorites.empty')}
           </Text>
           <Text style={styles.emptySubText}>
             {searchQuery
-              ? `"${searchQuery}" için eşleşme yok. Aramayı değiştir.`
-              : 'Film veya dizi detay sayfasından ❤️ butonuna basın'}
+              ? `"${searchQuery}" ${t('favorites.noMatch')}`
+              : t('favorites.emptyHint')}
           </Text>
         </View>
       ) : (
@@ -217,7 +221,7 @@ export default function FavoritesScreen() {
             onPageChange={handlePageChange}
           />
           <Text style={styles.pageInfo}>
-            {filteredSorted.length} favori  •  Sayfa {safePage + 1}/{totalPages}
+            {filteredSorted.length} {t('favorites.title').toLowerCase()} • {t('favorites.page')} {safePage + 1}/{totalPages}
           </Text>
         </>
       )}
