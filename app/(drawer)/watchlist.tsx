@@ -6,21 +6,20 @@ import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   Alert, FlatList, Pressable, ScrollView, StyleSheet, Text,
-  TouchableOpacity, View,
+  TextInput, TouchableOpacity, View,
 } from 'react-native';
 import DraggableFlatList, {
   RenderItemParams, ScaleDecorator,
 } from 'react-native-draggable-flatlist';
 
 import MediaCard from '../../components/MediaCard';
-import Pagination from '../../components/Pagination';
 import RatingModal from '../../components/RatingModal';
 import SkeletonCard from '../../components/SkeletonCard';
 import { useI18n } from '../../hooks/useI18n';
 import { MediaItem, useMediaStorage } from '../../hooks/useStorage';
 import { C, Radius } from '../../constants/theme';
 
-type SortKey = 'addedAt' | 'title' | 'year' | 'custom';
+type SortKey = 'addedAt' | 'title' | 'year';
 
 interface WatchlistItem extends MediaItem {
   watched?: boolean;
@@ -37,25 +36,18 @@ export default function WatchlistScreen() {
     { key: 'addedAt', label: `🕐 ${t('favorites.sortByDate')}` },
     { key: 'title',   label: `🔤 ${t('favorites.sortByTitle')}` },
     { key: 'year',    label: `📅 ${t('favorites.sortByYear')}` },
-    { key: 'custom',  label: `↕️ ${t('watchlist.sortCustom')}` },
   ];
 
-  const { items, loading, error, load, upsert, remove, searchItems, getPage } =
+  const { items, loading, error, load, upsert, remove, searchItems } =
     useMediaStorage('watchlist_data');
 
   const [searchQuery, setSearchQuery]         = useState('');
   const [sortKey, setSortKey]                 = useState<SortKey>('addedAt');
-  const [currentPage, setCurrentPage]         = useState(0);
   const [ratingModal, setRatingModal]         = useState(false);
   const [selectedItem, setSelectedItem]       = useState<WatchlistItem | null>(null);
   const [showPendingOnly, setShowPendingOnly] = useState(false);
 
-  const isCustomMode = sortKey === 'custom';
-
-  useFocusEffect(useCallback(() => {
-    load();
-    setCurrentPage(0);
-  }, [load]));
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const filteredSorted = useMemo(() => {
     let list = searchItems(searchQuery, items) as WatchlistItem[];
@@ -64,22 +56,13 @@ export default function WatchlistScreen() {
       switch (sortKey) {
         case 'title':  return a.title.localeCompare(b.title, 'tr');
         case 'year':   return b.year.localeCompare(a.year);
-        case 'custom': {
-          const ao = a.customOrder ?? Number.MAX_SAFE_INTEGER;
-          const bo = b.customOrder ?? Number.MAX_SAFE_INTEGER;
-          if (ao !== bo) return ao - bo;
-          return (b.addedAt || '').localeCompare(a.addedAt || '');
-        }
-        default: return (b.addedAt || '').localeCompare(a.addedAt || '');
+        default:       return (b.addedAt || '').localeCompare(a.addedAt || '');
       }
     });
   }, [items, searchQuery, sortKey, showPendingOnly, searchItems]);
 
-  const { data: pageData, totalPages, currentPage: safePage } =
-    getPage(filteredSorted, currentPage);
-
-  const handleSearch = (q: string) => { setSearchQuery(q); setCurrentPage(0); };
-  const handleSort   = (k: SortKey) => { setSortKey(k);    setCurrentPage(0); };
+  const handleSearch = (q: string) => setSearchQuery(q);
+  const handleSort   = (k: SortKey) => setSortKey(k);
 
   const toggleWatched = async (item: WatchlistItem) => {
     await upsert({ ...item, watched: !item.watched } as any);
@@ -91,13 +74,7 @@ export default function WatchlistScreen() {
       `"${item.title}" ${t('watchlist.removeConfirm')}`,
       [
         { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('watchlist.remove'), style: 'destructive',
-          onPress: () => {
-            remove(item.id);
-            if (pageData.length === 1 && currentPage > 0) setCurrentPage(p => p - 1);
-          },
-        },
+        { text: t('watchlist.remove'), style: 'destructive', onPress: () => remove(item.id) },
       ]
     );
 
@@ -145,6 +122,52 @@ export default function WatchlistScreen() {
 
   const pendingCount = (items as WatchlistItem[]).filter(i => !i.watched).length;
 
+  // ── renderDraggable: uzun basınca sürükle (Spotify stili) ──────────────────
+  const renderDraggable = useCallback(
+    ({ item, drag, isActive }: RenderItemParams<WatchlistItem>) => (
+      <ScaleDecorator>
+        <Pressable
+          onLongPress={drag}
+          delayLongPress={200}
+          style={isActive ? styles.draggingRow : undefined}
+        >
+          <View style={item.watched ? styles.watchedWrap : undefined}>
+            <MediaCard
+              item={item}
+              swipeEnabled={!isActive}
+              rateSwipeEnabled={false}
+              onPress={() => router.push({
+                pathname: '/details/[id]',
+                params: {
+                  id: item.id, title: item.title, trailer: item.trailer,
+                  year: item.year, type: item.type, img: item.img,
+                },
+              })}
+              onRate={() => openRating(item)}
+              onRemove={() => confirmRemove(item)}
+              removeIcon="trash-outline"
+              removeColor={C.accent}
+            />
+            <Pressable
+              style={[styles.watchedBtn, item.watched && styles.watchedBtnDone]}
+              onPress={() => toggleWatched(item)}
+            >
+              <Ionicons
+                name={item.watched ? 'checkmark-circle' : 'checkmark-circle-outline'}
+                size={14}
+                color={item.watched ? 'white' : C.textSub}
+              />
+              <Text style={[styles.watchedText, item.watched && styles.watchedTextDone]}>
+                {item.watched ? t('watchlist.watched') + ' ✓' : t('watchlist.markWatched')}
+              </Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </ScaleDecorator>
+    ),
+    [t]
+  );
+
   if (error) return (
     <View style={styles.centered}>
       <Text style={styles.errorIcon}>⚠️</Text>
@@ -155,72 +178,6 @@ export default function WatchlistScreen() {
     </View>
   );
 
-  // ── Row renderer ────────────────────────────────────────────────────────────
-  const renderRow = (
-    wItem: WatchlistItem,
-    dragProps?: { drag: () => void; isActive: boolean }
-  ) => (
-    <View style={[
-      wItem.watched && styles.watchedWrap,
-      dragProps?.isActive && styles.draggingRow,
-    ]}>
-      <View style={styles.rowInner}>
-        <View style={{ flex: 1 }}>
-          <MediaCard
-            item={wItem}
-            swipeEnabled={!isCustomMode}
-            rateSwipeEnabled={false}
-            onPress={() => router.push({
-              pathname: '/details/[id]',
-              params: {
-                id: wItem.id, title: wItem.title, trailer: wItem.trailer,
-                year: wItem.year, type: wItem.type, img: wItem.img,
-              },
-            })}
-            onRate={() => openRating(wItem)}
-            onRemove={() => confirmRemove(wItem)}
-            removeIcon="trash-outline"
-            removeColor={C.accent}
-          />
-        </View>
-
-        {dragProps && (
-          <Pressable
-            onLongPress={dragProps.drag}
-            delayLongPress={150}
-            disabled={dragProps.isActive}
-            style={styles.dragHandle}
-            accessibilityRole="button"
-            accessibilityLabel={t('a11y.dragHandle')}
-          >
-            <Ionicons name="reorder-three" size={32} color={C.textMuted} />
-          </Pressable>
-        )}
-      </View>
-
-      <Pressable
-        style={[styles.watchedBtn, wItem.watched && styles.watchedBtnDone]}
-        onPress={() => toggleWatched(wItem)}
-      >
-        <Ionicons
-          name={wItem.watched ? 'checkmark-circle' : 'checkmark-circle-outline'}
-          size={14}
-          color={wItem.watched ? 'white' : C.textSub}
-        />
-        <Text style={[styles.watchedText, wItem.watched && styles.watchedTextDone]}>
-          {wItem.watched ? t('watchlist.watched') + ' ✓' : t('watchlist.markWatched')}
-        </Text>
-      </Pressable>
-    </View>
-  );
-
-  const renderDraggable = useCallback(
-    ({ item, drag, isActive }: RenderItemParams<WatchlistItem>) =>
-      <ScaleDecorator>{renderRow(item, { drag, isActive })}</ScaleDecorator>,
-    [isCustomMode, t]
-  );
-
-  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <View style={styles.container}>
 
@@ -267,7 +224,7 @@ export default function WatchlistScreen() {
 
         <Pressable
           style={[styles.filterBtn, showPendingOnly && styles.filterBtnActive]}
-          onPress={() => { setShowPendingOnly(p => !p); setCurrentPage(0); }}
+          onPress={() => setShowPendingOnly(p => !p)}
         >
           <Ionicons
             name={showPendingOnly ? 'time' : 'time-outline'}
@@ -284,14 +241,6 @@ export default function WatchlistScreen() {
           <Text style={styles.smsBtnText}>SMS</Text>
         </TouchableOpacity>
       </View>
-
-      {/* Drag hint */}
-      {isCustomMode && (
-        <View style={styles.dragHintBar}>
-          <Ionicons name="information-circle-outline" size={14} color={C.textMuted} />
-          <Text style={styles.dragHintText}>{t('watchlist.dragHint')}</Text>
-        </View>
-      )}
 
       {/* İçerik */}
       {loading ? (
@@ -314,38 +263,19 @@ export default function WatchlistScreen() {
               : t('watchlist.emptyHint')}
           </Text>
         </View>
-      ) : isCustomMode ? (
+      ) : (
         <>
           <DraggableFlatList
             data={filteredSorted}
             keyExtractor={item => item.id}
             renderItem={renderDraggable}
             onDragEnd={handleDragEnd}
-            contentContainerStyle={{ padding: 12, paddingBottom: 12 }}
+            contentContainerStyle={{ padding: 12, paddingBottom: 80 }}
             showsVerticalScrollIndicator={false}
             activationDistance={8}
           />
           <Text style={styles.pageInfo}>
             {filteredSorted.length} {t('favorites.smsContent')}
-          </Text>
-        </>
-      ) : (
-        <>
-          <FlatList
-            data={pageData}
-            keyExtractor={item => item.id}
-            contentContainerStyle={{ padding: 12, paddingBottom: 4 }}
-            showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => renderRow(item as WatchlistItem)}
-          />
-          <Pagination
-            currentPage={safePage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-          />
-          <Text style={styles.pageInfo}>
-            {filteredSorted.length} {t('favorites.smsContent')} •{' '}
-            {t('favorites.page')} {safePage + 1}/{totalPages}
           </Text>
         </>
       )}
@@ -361,8 +291,6 @@ export default function WatchlistScreen() {
     </View>
   );
 }
-
-import { TextInput } from 'react-native';
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
@@ -405,12 +333,10 @@ const styles = StyleSheet.create({
   },
   smsBtnText: { color: 'white', fontWeight: 'bold', fontSize: 12 },
 
-  dragHintBar:  { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingBottom: 6 },
-  dragHintText: { fontSize: 11, color: C.textMuted, fontStyle: 'italic' },
-
-  rowInner:   { flexDirection: 'row', alignItems: 'center' },
-  dragHandle: { paddingHorizontal: 6, paddingVertical: 16, alignItems: 'center', justifyContent: 'center' },
-  draggingRow:{ shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 },
+  draggingRow: {
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3, shadowRadius: 8, elevation: 8,
+  },
 
   watchedWrap:     { opacity: 0.55 },
   watchedBtn: {
