@@ -615,9 +615,12 @@ export default function MapScreen() {
                       <Text style={styles.sheetBtnSecText}>{t('map.close')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={[styles.sheetBtn, styles.sheetBtnPrimary]}
-                      onPress={() => { setSelectedCinema(null); router.push('/(drawer)/(tabs)'); }}
-                    >
+  style={[styles.sheetBtn, styles.sheetBtnPrimary]}
+  onPress={() => {
+    setSelectedCinema(null);
+    Linking.openURL('https://biletinial.com/tr-tr/sinema');
+  }}
+>
                       <Ionicons name="ticket-outline" size={16} color="white" />
                       <Text style={styles.sheetBtnText}>{t('map.buyTicket')}</Text>
                     </TouchableOpacity>

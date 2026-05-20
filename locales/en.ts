@@ -36,7 +36,8 @@ const en: Translations = {
     movieName: 'Movie Name', imageUrl: 'Image URL',
     youtubeLink: 'YouTube Link', year: 'Year', genre: 'Genre',
     seeDetails: 'See Details', suggestAgain: 'Suggest Again',
-    shakeSubtitle: 'We picked this for you 🎲',
+    shakeSubtitle: 'We picked this for you 🎲',seriesLoadError: 'Could not load series',
+seriesName: 'Series name',
   },
   genres: {
     all: 'All', action: 'Action', comedy: 'Comedy', drama: 'Drama',

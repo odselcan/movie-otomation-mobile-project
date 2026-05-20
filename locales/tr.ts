@@ -36,7 +36,9 @@ const tr: Translations = {
     movieName: 'Film Adı', imageUrl: 'Görsel URL',
     youtubeLink: 'YouTube Linki', year: 'Yıl', genre: 'Tür',
     seeDetails: 'Detaylara Git', suggestAgain: 'Tekrar Öner',
-    shakeSubtitle: 'Senin için seçtik 🎲',
+    shakeSubtitle: 'Senin için seçtik 🎲',seriesLoadError: 'Diziler yüklenemedi',
+seriesName: 'Dizi adı',
+
   },
   genres: {
     all: 'Tümü', action: 'Aksiyon', comedy: 'Komedi', drama: 'Dram',

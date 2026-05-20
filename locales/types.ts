@@ -24,7 +24,7 @@ export interface Translations {
     loadError: string; titleRequired: string; edit: string; add: string;
     movieName: string; imageUrl: string; youtubeLink: string;
     year: string; genre: string; seeDetails: string; suggestAgain: string;
-    shakeSubtitle: string;
+    shakeSubtitle: string; seriesLoadError: string; seriesName: string;
   };
   genres: {
     all: string; action: string; comedy: string; drama: string;
