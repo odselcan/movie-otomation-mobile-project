@@ -17,8 +17,9 @@ const tr: Translations = {
   },
   drawer: {
     home: 'Ana Sayfa', appTitle: 'Film & Dizi',
-    nearbyCinemas: 'Yakın Sinemalar', cinemas: 'Sinema Haritası',
+    nearbyCinemas: 'Yakın Sinemalar', cinemas: 'Sinema Haritası', settings: 'Ayarlar'
   },
+  settings: { language: 'Dil', display: 'Ekran' } ,
   media: {
     topRated: 'En Yüksek Puanlı', nowPlaying: 'Vizyonda', popular: 'Popüler',
     upcoming: 'Yakında', onTheAir: 'Yayında', movie: 'Film', series: 'Dizi',
@@ -37,8 +38,9 @@ const tr: Translations = {
     youtubeLink: 'YouTube Linki', year: 'Yıl', genre: 'Tür',
     seeDetails: 'Detaylara Git', suggestAgain: 'Tekrar Öner',
     shakeSubtitle: 'Senin için seçtik 🎲',seriesLoadError: 'Diziler yüklenemedi',
-seriesName: 'Dizi adı',
-
+    seriesName: 'Dizi adı', swipeHintDelete: 'Silmek için sola kaydır',
+     swipeHintRate: 'Puanlamak için sağa kaydır',
+ 
   },
   genres: {
     all: 'Tümü', action: 'Aksiyon', comedy: 'Komedi', drama: 'Dram',
@@ -83,6 +85,8 @@ seriesName: 'Dizi adı',
     emptyListMsg: 'İzleme listesi boş.',
     smsTitle: 'İzleme Listem',
     searchPlaceholder: 'İzleme listesinde ara...',
+    sortCustom: 'Manuel',
+  dragHint: 'Sürüklemek için tutamacı basılı tutun',
   },
   map: {
     title: 'Sinema Haritası', nearest: 'En Yakın Sinema',
@@ -145,6 +149,9 @@ type_student: 'Öğrenci Dostu', type_night: 'Gece Sineması', type_classic: 'Kl
     batteryLevel: 'Batarya seviyesi', networkStatus: 'Ağ bağlantı durumu',
     mapMarker: 'Sinema konumu', sortButton: 'Sıralama seçenekleri',
     pageNumber: 'Sayfa numarası', starRating: 'Yıldız puanı',
+     cardSwipeHint: 'Sağa kaydırarak puanlayabilir, sola kaydırarak silebilirsiniz',
+       dragHandle: 'Sürükleme tutamacı',
+
   },
 };
 

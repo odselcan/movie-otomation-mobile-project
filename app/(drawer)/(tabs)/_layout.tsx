@@ -1,27 +1,32 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import { useI18n } from '../../../hooks/useI18n'; // ← 1. import
+import { useI18n } from '../../../hooks/useI18n';
+import { C } from '../../../constants/theme';
 
 export default function TabLayout() {
-  const { t } = useI18n();  // ← 2. hook
+  const { t } = useI18n();
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#DB7093',
-        tabBarInactiveTintColor: '#c0a0b0',
+        tabBarActiveTintColor: C.accent,
+        tabBarInactiveTintColor: C.textMuted,
         tabBarStyle: {
-          backgroundColor: 'white',
-          borderTopColor: '#FFD1DC',
+          backgroundColor: C.surface,
+          borderTopColor: C.border,
           borderTopWidth: 1,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '600',
         },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: t('tabs.films'),   // ← 3. 'Filmler' yerine
+          title: t('tabs.films'),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="film-outline" size={size} color={color} />
           ),
@@ -30,7 +35,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="series"
         options={{
-          title: t('tabs.series'),  // ← 'Diziler' yerine
+          title: t('tabs.series'),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="tv-outline" size={size} color={color} />
           ),
@@ -39,7 +44,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="explore"
         options={{
-          title: t('tabs.explore'), // ← 'Keşfet' yerine
+          title: t('tabs.explore'),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="compass-outline" size={size} color={color} />
           ),

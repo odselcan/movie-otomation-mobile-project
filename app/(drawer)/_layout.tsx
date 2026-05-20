@@ -1,22 +1,19 @@
 // app/(drawer)/_layout.tsx
-// i18n + LanguageSwitcher header'a eklendi
-
 import NetworkBanner from '@/components/NetworkBanner';
 import { useBrightness } from '@/hooks/useSensors';
 import { useI18n } from '@/hooks/useI18n';
-import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { Ionicons } from '@expo/vector-icons';
 import { Drawer } from 'expo-router/drawer';
 import { TouchableOpacity, View } from 'react-native';
+import { C } from '@/constants/theme';
 
-// Brightness + Dil seçici — header sağ taraf
+// Brightness butonu — header sağ (dil switcher buradan kaldırıldı → Ayarlar sayfası)
 function HeaderRight() {
   const { isCinemaMode, toggleCinemaMode } = useBrightness();
   const { t } = useI18n();
 
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginRight: 12 }}>
-      <LanguageSwitcher />
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 12 }}>
       <TouchableOpacity
         onPress={toggleCinemaMode}
         accessibilityRole="button"
@@ -25,7 +22,7 @@ function HeaderRight() {
         <Ionicons
           name={isCinemaMode ? 'film' : 'sunny-outline'}
           size={22}
-          color={isCinemaMode ? '#FFD700' : '#DB7093'}
+          color={isCinemaMode ? '#FFD700' : C.textSub}
         />
       </TouchableOpacity>
     </View>
@@ -33,7 +30,7 @@ function HeaderRight() {
 }
 
 export default function DrawerLayout() {
-  const { t } = useI18n(); // ← hook
+  const { t } = useI18n();
 
   return (
     <>
@@ -42,51 +39,58 @@ export default function DrawerLayout() {
       <Drawer
         screenOptions={{
           headerShown: true,
-          headerTintColor: '#DB7093',
-          drawerActiveTintColor: '#DB7093',
-          drawerStyle: { backgroundColor: '#FFF5F7' },
-          headerRight: () => <HeaderRight />,
-           headerTitleAlign: 'left',
-  headerTitleContainerStyle: {
-  left: 50,    // hamburger genişliği
-  right: 120,  // TR + EN + brightness genişliği
-},
-  headerTitleStyle: { fontSize: 16, fontWeight: '700', color: '#DB7093' },
+          headerStyle:           { backgroundColor: C.bg },
+          headerTintColor:       C.text,
+          headerTitleStyle:      { fontSize: 16, fontWeight: '700', color: C.text },
+          headerTitleAlign:      'left',
+          headerTitleContainerStyle: { left: 50, right: 60 },
+          headerRight:           () => <HeaderRight />,
+          drawerStyle:           { backgroundColor: C.surface },
+          drawerActiveTintColor:   C.accent,
+          drawerInactiveTintColor: C.textSub,
+          drawerLabelStyle:      { fontSize: 14, fontWeight: '600' },
         }}
       >
         <Drawer.Screen
           name="(tabs)"
           options={{
-            drawerLabel: `🏠 ${t('drawer.home')}`,           // ← çevrildi
-            headerTitle: t('drawer.appTitle'),                // ← çevrildi
+            drawerLabel:  `🏠 ${t('drawer.home')}`,
+            headerTitle:  t('drawer.appTitle'),
           }}
         />
         <Drawer.Screen
           name="map"
           options={{
-            drawerLabel: `📍 ${t('drawer.nearbyCinemas')}`,  // ← çevrildi
-            headerTitle: t('drawer.cinemas'),                 // ← çevrildi
+            drawerLabel:  `📍 ${t('drawer.nearbyCinemas')}`,
+            headerTitle:  t('drawer.cinemas'),
           }}
         />
         <Drawer.Screen
           name="favorites"
           options={{
-            drawerLabel: `💖 ${t('tabs.favorites')}`,        // ← mevcut key
-            headerTitle: t('favorites.title'),               // ← mevcut key
+            drawerLabel:  `💖 ${t('tabs.favorites')}`,
+            headerTitle:  t('favorites.title'),
           }}
         />
         <Drawer.Screen
           name="watchlist"
           options={{
-            drawerLabel: `📝 ${t('tabs.watchlist')}`,        // ← mevcut key
-            headerTitle: t('watchlist.title'),               // ← mevcut key
+            drawerLabel:  `📝 ${t('tabs.watchlist')}`,
+            headerTitle:  t('watchlist.title'),
           }}
         />
         <Drawer.Screen
           name="notifications-test"
           options={{
-            drawerLabel: `🔔 ${t('tabs.notifications')}`,    // ← mevcut key
-            headerTitle: `💖 ${t('tabs.notifications')}`,    // ← mevcut key
+            drawerLabel:  `🔔 ${t('tabs.notifications')}`,
+            headerTitle:  t('tabs.notifications'),
+          }}
+        />
+        <Drawer.Screen
+          name="settings"
+          options={{
+            drawerLabel:  `⚙️ ${t('drawer.settings')}`,
+            headerTitle:  t('drawer.settings'),
           }}
         />
       </Drawer>

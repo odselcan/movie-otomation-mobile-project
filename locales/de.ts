@@ -35,12 +35,15 @@ const de: Translations = {
     notifications: 'Benachrichtigungen',
     sensors:       'Sensoren',
   },
-
+ 
+  settings: { language: 'Sprache', display: 'Anzeige' }, 
+  
   drawer: {
     home:          'Startseite',
     appTitle:      'Film & Serie',
     nearbyCinemas: 'Kinos in der Nähe',
     cinemas:       'Kinoplan',
+    settings: 'Einstellungen' ,
   },
 
   media: {
@@ -78,6 +81,8 @@ const de: Translations = {
     shakeSubtitle:       'Zufälliger Film wird ausgewählt',
     seriesLoadError:     'Serien konnten nicht geladen werden',
     seriesName:          'Serienname',
+     swipeHintDelete: 'Zum Löschen nach links wischen',
+      swipeHintRate: 'Zum Bewerten nach rechts wischen',
   },
 
   genres: {
@@ -166,6 +171,8 @@ const de: Translations = {
     emptyListMsg:      'Merkliste ist leer.',
     smsTitle:          'Meine Merkliste',
     searchPlaceholder: 'In Merkliste suchen...',
+    sortCustom: 'Manuell',
+  dragHint: 'Halten Sie den Griff gedrückt zum Ziehen',
   },
 
   map: {
@@ -267,6 +274,9 @@ const de: Translations = {
     sortButton:    'Sortierknopf',
     pageNumber:    'Seitennummer',
     starRating:    'Sternebewertung',
+      cardSwipeHint: 'Nach rechts wischen zum Bewerten, nach links wischen zum Löschen',
+       dragHandle: 'Ziehgriff',
+
   },
 };
 

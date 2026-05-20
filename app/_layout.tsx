@@ -2,43 +2,39 @@ import { Stack, useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import * as Notifications from 'expo-notifications';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { C } from '@/constants/theme';
 
 export default function RootLayout() {
-  // 1. Bildirim ve Router Hook'larını tanımlıyoruz
-  const { expoPushToken, notification } = usePushNotifications();
+  usePushNotifications();
   const router = useRouter();
 
-  // 2. Bildirim dinleyicisini useEffect içine kuruyoruz
   useEffect(() => {
     const subscription = Notifications.addNotificationResponseReceivedListener(
       (response) => {
-        // Bildirimden gelen veriyi alıyoruz
         const { mediaId } = response.notification.request.content.data;
-        
-        if (mediaId) {
-          // Bildirime tıklandığında detay sayfasına yönlendiriyoruz
-          // Not: Yolun app klasöründeki yapıya göre "(drawer)/details/${mediaId}" olduğundan emin ol
-          router.push(`/(drawer)/details/${mediaId}`);
-        }
+        if (mediaId) router.push(`/(drawer)/details/${mediaId}`);
       }
     );
-
     return () => subscription.remove();
   }, []);
 
-  // 3. Mevcut Layout (Arayüz) kodun
   return (
-    <Stack>
-      <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
-      <Stack.Screen 
-        name="details/[id]" 
-        options={{ 
-          headerTitle: "Film Detayları", 
-          headerTintColor: "#DB7093",
-          headerStyle: { backgroundColor: "#FFF5F7" },
-          headerBackTitle: "Geri"
-        }} 
-      />
-    </Stack>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <Stack>
+        <Stack.Screen
+          name="(drawer)"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="details/[id]"
+          options={{
+            headerShown: false,        // ← kendi back butonumuz var
+            animation: 'slide_from_right',
+            contentStyle: { backgroundColor: C.bg },
+          }}
+        />
+      </Stack>
+    </GestureHandlerRootView>
   );
 }

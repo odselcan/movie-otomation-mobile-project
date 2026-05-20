@@ -1,31 +1,29 @@
-// app/(drawer)/favorites.tsx
+// app/(drawer)/favorites.tsx — Netflix dark tema
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import * as SMS from 'expo-sms';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-  Alert, FlatList, Pressable, StyleSheet, Text,
-  TouchableOpacity, View,
+  Alert, FlatList, Pressable, ScrollView, StyleSheet,
+  Text, TouchableOpacity, View,
 } from 'react-native';
 
 import MediaCard from '../../components/MediaCard';
 import Pagination from '../../components/Pagination';
 import RatingModal from '../../components/RatingModal';
-import SearchBar from '../../components/SearchBar';
 import SkeletonCard from '../../components/SkeletonCard';
-import { useI18n } from '../../hooks/useI18n'; // ← i18n
+import { useI18n } from '../../hooks/useI18n';
 import { MediaItem, useMediaStorage } from '../../hooks/useStorage';
+import { C, Radius, Spacing } from '../../constants/theme';
 
 type SortKey = 'addedAt' | 'userRating' | 'title' | 'year';
-
 const SKELETON_COUNT = 5;
 
 export default function FavoritesScreen() {
-  const router = useRouter();
-  const { t } = useI18n(); // ← hook
+  const router  = useRouter();
+  const { t }   = useI18n();
 
-  // SORT_OPTIONS component içinde — t() kullanabilmek için
   const SORT_OPTIONS: { key: SortKey; label: string }[] = [
     { key: 'addedAt',    label: `🕐 ${t('favorites.sortByDate')}` },
     { key: 'userRating', label: `⭐ ${t('favorites.sortByRating')}` },
@@ -42,12 +40,10 @@ export default function FavoritesScreen() {
   const [ratingModal, setRatingModal]   = useState(false);
   const [selectedItem, setSelectedItem] = useState<MediaItem | null>(null);
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-      setCurrentPage(0);
-    }, [load])
-  );
+  useFocusEffect(useCallback(() => {
+    load();
+    setCurrentPage(0);
+  }, [load]));
 
   const filteredSorted = useMemo(() => {
     const searched = searchItems(searchQuery, items);
@@ -61,13 +57,13 @@ export default function FavoritesScreen() {
     });
   }, [items, searchQuery, sortKey, searchItems]);
 
-  const { data: pageData, totalPages, currentPage: safePage } = getPage(filteredSorted, currentPage);
+  const { data: pageData, totalPages, currentPage: safePage } =
+    getPage(filteredSorted, currentPage);
 
-  const handlePageChange = (p: number) => setCurrentPage(p);
-  const handleSort       = (key: SortKey) => { setSortKey(key);   setCurrentPage(0); };
-  const handleSearch     = (q: string)    => { setSearchQuery(q); setCurrentPage(0); };
+  const handleSearch = (q: string) => { setSearchQuery(q); setCurrentPage(0); };
+  const handleSort   = (k: SortKey) => { setSortKey(k);    setCurrentPage(0); };
 
-  const confirmRemove = (item: MediaItem) => {
+  const confirmRemove = (item: MediaItem) =>
     Alert.alert(
       t('favorites.removeTitle'),
       `"${item.title}" ${t('favorites.removeConfirm')}`,
@@ -77,12 +73,11 @@ export default function FavoritesScreen() {
           text: t('favorites.remove'), style: 'destructive',
           onPress: () => {
             remove(item.id);
-            if (pageData.length === 1 && currentPage > 0) setCurrentPage(currentPage - 1);
+            if (pageData.length === 1 && currentPage > 0) setCurrentPage(p => p - 1);
           },
         },
       ]
     );
-  };
 
   const openRating = (item: MediaItem) => { setSelectedItem(item); setRatingModal(true); };
 
@@ -93,86 +88,97 @@ export default function FavoritesScreen() {
     setSelectedItem(null);
   };
 
-  // ── SMS: Tüm favori listesini gönder ─────────────────────────
   const sendFavoritesSMS = async () => {
     if (items.length === 0) {
       Alert.alert(t('favorites.emptyList'), t('favorites.emptyListMsg'));
       return;
     }
     const available = await SMS.isAvailableAsync();
-    if (!available) {
-      Alert.alert(t('common.error'), t('map.smsNotSupported'));
-      return;
-    }
+    if (!available) { Alert.alert(t('common.error'), t('map.smsNotSupported')); return; }
 
-    const liste = items
-      .slice(0, 20)
+    const liste = items.slice(0, 20)
       .map((item, i) =>
         `${i + 1}. ${item.title} (${item.year})${item.userRating > 0 ? ` ⭐${item.userRating}/10` : ''}`
-      )
-      .join('\n');
+      ).join('\n');
 
-    const mesaj =
-      `🎬 ${t('favorites.smsTitle')}\n` +
-      `━━━━━━━━━━━━━━━━\n` +
-      `${liste}\n` +
-      `━━━━━━━━━━━━━━━━\n` +
-      `${t('favorites.smsTotal')}: ${items.length} ${t('favorites.smsContent')}`;
-
-    await SMS.sendSMSAsync([], mesaj);
+    await SMS.sendSMSAsync([], [
+      `🎬 ${t('favorites.smsTitle')}`,
+      `━━━━━━━━━━━━━━━━`,
+      liste,
+      `━━━━━━━━━━━━━━━━`,
+      `${t('favorites.smsTotal')}: ${items.length} ${t('favorites.smsContent')}`,
+    ].join('\n'));
   };
 
-  if (error) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.errorIcon}>⚠️</Text>
-        <Text style={styles.errorText}>{error}</Text>
-        <Pressable style={styles.retryBtn} onPress={load}>
-          <Text style={styles.retryText}>{t('common.retry')}</Text>
-        </Pressable>
-      </View>
-    );
-  }
+  if (error) return (
+    <View style={styles.centered}>
+      <Text style={styles.errorIcon}>⚠️</Text>
+      <Text style={styles.errorText}>{error}</Text>
+      <Pressable style={styles.retryBtn} onPress={load}>
+        <Text style={styles.retryText}>{t('common.retry')}</Text>
+      </Pressable>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
-      <SearchBar
-        value={searchQuery}
-        onChangeText={handleSearch}
-        placeholder={t('favorites.searchPlaceholder')}
-      />
+
+      {/* ── Arama ─────────────────────────────────────────────────────────── */}
+      <View style={styles.searchBar}>
+        <Ionicons name="search-outline" size={16} color={C.textMuted} />
+        <Pressable style={{ flex: 1 }} onPress={() => {}}>
+          <View style={styles.searchInputWrap}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder={t('favorites.searchPlaceholder')}
+              placeholderTextColor={C.textMuted}
+              value={searchQuery}
+              onChangeText={handleSearch}
+            />
+          </View>
+        </Pressable>
+        {searchQuery.length > 0 && (
+          <Pressable onPress={() => handleSearch('')} hitSlop={8}>
+            <Ionicons name="close-circle" size={16} color={C.textMuted} />
+          </Pressable>
+        )}
+      </View>
 
       {searchQuery.length > 0 && (
-        <Text style={styles.resultCount}>{filteredSorted.length} {t('media.resultsFound')}</Text>
+        <Text style={styles.resultCount}>
+          {filteredSorted.length} {t('media.resultsFound')}
+        </Text>
       )}
 
-      {/* SORT + SMS BUTONU */}
-      <View style={styles.topRow}>
-        <View style={styles.sortRow}>
-          {SORT_OPTIONS.map((opt) => (
-            <Pressable
-              key={opt.key}
-              style={[styles.sortBtn, sortKey === opt.key && styles.sortBtnActive]}
-              onPress={() => handleSort(opt.key)}
-            >
-              <Text style={[styles.sortText, sortKey === opt.key && styles.sortTextActive]}>
-                {opt.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+      {/* ── Sort + SMS ────────────────────────────────────────────────────── */}
+      <View style={styles.controlRow}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
+          <View style={styles.sortRow}>
+            {SORT_OPTIONS.map(opt => (
+              <Pressable
+                key={opt.key}
+                style={[styles.sortBtn, sortKey === opt.key && styles.sortBtnActive]}
+                onPress={() => handleSort(opt.key)}
+              >
+                <Text style={[styles.sortText, sortKey === opt.key && styles.sortTextActive]}>
+                  {opt.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </ScrollView>
 
-        {/* SMS Butonu */}
         <TouchableOpacity style={styles.smsBtn} onPress={sendFavoritesSMS}>
           <Ionicons name="chatbubble-outline" size={15} color="white" />
           <Text style={styles.smsBtnText}>SMS</Text>
         </TouchableOpacity>
       </View>
 
+      {/* ── İçerik ────────────────────────────────────────────────────────── */}
       {loading ? (
         <FlatList
           data={Array.from({ length: SKELETON_COUNT }, (_, i) => i)}
-          keyExtractor={(i) => `skeleton-${i}`}
+          keyExtractor={(i) => `sk-${i}`}
           contentContainerStyle={{ padding: 12 }}
           showsVerticalScrollIndicator={false}
           renderItem={() => <SkeletonCard />}
@@ -199,29 +205,28 @@ export default function FavoritesScreen() {
             renderItem={({ item }) => (
               <MediaCard
                 item={item}
-                onPress={() =>
-                  router.push({
-                    pathname: '/details/[id]',
-                    params: {
-                      id: item.id, title: item.title, trailer: item.trailer,
-                      year: item.year, type: item.type, img: item.img,
-                    },
-                  })
-                }
+                onPress={() => router.push({
+                  pathname: '/details/[id]',
+                  params: {
+                    id: item.id, title: item.title, trailer: item.trailer,
+                    year: item.year, type: item.type, img: item.img,
+                  },
+                })}
                 onRate={() => openRating(item)}
                 onRemove={() => confirmRemove(item)}
                 removeIcon="heart-dislike-outline"
-                removeColor="#DB7093"
+                removeColor={C.accent}
               />
             )}
           />
           <Pagination
             currentPage={safePage}
             totalPages={totalPages}
-            onPageChange={handlePageChange}
+            onPageChange={setCurrentPage}
           />
           <Text style={styles.pageInfo}>
-            {filteredSorted.length} {t('favorites.title').toLowerCase()} • {t('favorites.page')} {safePage + 1}/{totalPages}
+            {filteredSorted.length} {t('favorites.title').toLowerCase()} •{' '}
+            {t('favorites.page')} {safePage + 1}/{totalPages}
           </Text>
         </>
       )}
@@ -238,36 +243,52 @@ export default function FavoritesScreen() {
   );
 }
 
+import { TextInput } from 'react-native';
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFF5F7' },
+  container: { flex: 1, backgroundColor: C.bg },
   centered:  { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
 
   errorIcon: { fontSize: 48, marginBottom: 12 },
-  errorText: { fontSize: 15, color: '#e74c3c', textAlign: 'center', marginBottom: 16 },
-  retryBtn:  { backgroundColor: '#DB7093', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20 },
+  errorText: { fontSize: 15, color: C.accent, textAlign: 'center', marginBottom: 16 },
+  retryBtn:  { backgroundColor: C.accent, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20 },
   retryText: { color: 'white', fontWeight: 'bold', fontSize: 14 },
 
-  resultCount: { fontSize: 12, color: '#a07088', paddingHorizontal: 16, marginBottom: 4 },
+  // Arama
+  searchBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: C.surface, borderRadius: Radius.md,
+    paddingHorizontal: 12, paddingVertical: 10,
+    margin: 12, marginBottom: 4,
+    borderWidth: 1, borderColor: C.border,
+  },
+  searchInputWrap: { flex: 1 },
+  searchInput:     { flex: 1, fontSize: 13, color: C.text, padding: 0 },
+  resultCount:     { fontSize: 12, color: C.textMuted, paddingHorizontal: 16, marginBottom: 4 },
 
-  topRow:  { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingBottom: 8, gap: 8 },
-  sortRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', flex: 1 },
-
-  sortBtn:        { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: '#FFD1DC', backgroundColor: 'white' },
-  sortBtnActive:  { backgroundColor: '#DB7093', borderColor: '#DB7093' },
-  sortText:       { fontSize: 12, color: '#DB7093' },
+  // Sort + SMS
+  controlRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 12, paddingBottom: 8, gap: 8,
+  },
+  sortRow:        { flexDirection: 'row', gap: 6 },
+  sortBtn:        { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface },
+  sortBtnActive:  { backgroundColor: C.accent, borderColor: C.accent },
+  sortText:       { fontSize: 11, color: C.textSub },
   sortTextActive: { color: 'white', fontWeight: 'bold' },
 
   smsBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: '#9b59b6', paddingHorizontal: 12,
-    paddingVertical: 7, borderRadius: 20,
+    backgroundColor: '#6c3483',
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
   },
   smsBtnText: { color: 'white', fontWeight: 'bold', fontSize: 12 },
 
+  // Boş
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
   emptyIcon:      { fontSize: 56, marginBottom: 16 },
-  emptyText:      { fontSize: 18, fontWeight: 'bold', color: '#DB7093', marginBottom: 8 },
-  emptySubText:   { fontSize: 13, color: '#c0a0b0', textAlign: 'center', lineHeight: 20 },
+  emptyText:      { fontSize: 18, fontWeight: 'bold', color: C.text, marginBottom: 8 },
+  emptySubText:   { fontSize: 13, color: C.textMuted, textAlign: 'center', lineHeight: 20 },
 
-  pageInfo: { textAlign: 'center', fontSize: 11, color: '#c0a0b0', paddingBottom: 12 },
+  pageInfo: { textAlign: 'center', fontSize: 11, color: C.textMuted, paddingBottom: 12 },
 });

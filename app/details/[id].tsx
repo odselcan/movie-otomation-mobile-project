@@ -1,20 +1,25 @@
-// app/details/[id].tsx
+// app/details/[id].tsx — Netflix dark tema + watch providers + fullscreen trailer
+
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as Linking from 'expo-linking';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Alert, Animated, Image, Platform, Pressable,
+  Alert, Animated, Image, Modal, Platform, Pressable,
   ScrollView, StyleSheet, Text, ToastAndroid,
   TouchableOpacity, View,
 } from 'react-native';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import {
   getCredits, getDetail, getSimilar, getVideos,
-  MediaType, TMDB_IMAGE, tmdbToItem,
+  MediaType, TMDB_IMAGE, tmdbToItem, API_KEY,
 } from '../../services/tmdb';
 import { useI18n } from '../../hooks/useI18n';
+import { C, Radius, Spacing } from '../../constants/theme';
 
+// ─── Types ────────────────────────────────────────────────────────────────────
 interface FavoriteItem {
   id: string; title: string; trailer: string; year: string;
   type: string; img: string; userRating: number; mediaType?: string;
@@ -30,7 +35,11 @@ interface SimilarItem {
   id: string; title: string; img: string; imdb: string;
   year: string; type: string; trailer: string; mediaType: string;
 }
+interface WatchProvider {
+  provider_id: number; provider_name: string; logo_path: string;
+}
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 function SkeletonBox({ width, height, borderRadius = 8, opacity }: {
   width: number | string; height: number; borderRadius?: number;
   opacity: Animated.AnimatedInterpolation<number>;
@@ -38,7 +47,7 @@ function SkeletonBox({ width, height, borderRadius = 8, opacity }: {
   return (
     <Animated.View style={{
       width: width as any, height, borderRadius,
-      backgroundColor: '#FFD1DC', opacity, marginBottom: 6,
+      backgroundColor: C.surfaceHigh, opacity, marginBottom: 6,
     }} />
   );
 }
@@ -48,27 +57,41 @@ const showToast = (msg: string) => {
   else Alert.alert('', msg);
 };
 
+// ═══════════════════════════════════════════════════════════════════════════════
 export default function DetailsScreen() {
-  const { id, title, trailer, year, type, img, mediaType: mediaTypeParam } = useLocalSearchParams();
+  const {
+    id, title, trailer, year, type, img,
+    backdrop: backdropParam, overview: overviewParam,
+    mediaType: mediaTypeParam,
+  } = useLocalSearchParams();
+
   const router = useRouter();
-  const { t } = useI18n();
+  const { t }  = useI18n();
 
   const mediaType: MediaType = (mediaTypeParam as string) === 'tv' ? 'tv' : 'movie';
   const isTV = mediaType === 'tv';
 
-  const [playing, setPlaying]           = useState(true);
-  const [isFavorite, setIsFavorite]     = useState(false);
-  const [isWatchlist, setIsWatchlist]   = useState(false);
-  const [loading, setLoading]           = useState(true);
-  const [overview, setOverview]         = useState('');
-  const [voteAverage, setVoteAverage]   = useState('');
-  const [actors, setActors]             = useState<Actor[]>([]);
-  const [similarItems, setSimilarItems] = useState<SimilarItem[]>([]);
-  const [trailerKey, setTrailerKey]     = useState((trailer as string) || '');
-  const [seasons, setSeasons]           = useState<number>(0);
+  // ── State ──────────────────────────────────────────────────────────────────
+  const [trailerModal, setTrailerModal]   = useState(false);
+  const [playing, setPlaying]             = useState(false);
+  const [isFavorite, setIsFavorite]       = useState(false);
+  const [isWatchlist, setIsWatchlist]     = useState(false);
+  const [loading, setLoading]             = useState(true);
+  const [overview, setOverview]           = useState((overviewParam as string) || '');
+  const [voteAverage, setVoteAverage]     = useState('');
+  const [actors, setActors]               = useState<Actor[]>([]);
+  const [similarItems, setSimilarItems]   = useState<SimilarItem[]>([]);
+  const [trailerKey, setTrailerKey]       = useState((trailer as string) || '');
+  const [seasons, setSeasons]             = useState(0);
+  const [providers, setProviders]         = useState<WatchProvider[]>([]);
+  const [providerLink, setProviderLink]   = useState('');
+  const [heroImg, setHeroImg]             = useState(
+    (backdropParam as string) || (img as string) || ''
+  );
 
-  const anim = useRef(new Animated.Value(0)).current;
-  const skeletonOpacity = anim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.7] });
+  // ── Skeleton animasyonu ────────────────────────────────────────────────────
+  const anim            = useRef(new Animated.Value(0)).current;
+  const skeletonOpacity = anim.interpolate({ inputRange: [0, 1], outputRange: [0.2, 0.7] });
 
   useEffect(() => {
     Animated.loop(
@@ -82,63 +105,77 @@ export default function DetailsScreen() {
 
   const init = async () => {
     setLoading(true);
-    await checkStatus();
-    await fetchTMDB();
+    await Promise.all([checkStatus(), fetchTMDB()]);
     setLoading(false);
   };
 
   const checkStatus = async () => {
     try {
-      const favData   = await AsyncStorage.getItem('favorites_data');
-      const watchData = await AsyncStorage.getItem('watchlist_data');
-      const favs: FavoriteItem[]   = favData   ? JSON.parse(favData)   : [];
+      const [favData, watchData] = await Promise.all([
+        AsyncStorage.getItem('favorites_data'),
+        AsyncStorage.getItem('watchlist_data'),
+      ]);
+      const favs:  FavoriteItem[]  = favData   ? JSON.parse(favData)   : [];
       const watch: WatchlistItem[] = watchData ? JSON.parse(watchData) : [];
-      setIsFavorite(favs.some((f) => f.id === id));
-      setIsWatchlist(watch.some((w) => w.id === id));
+      setIsFavorite(favs.some(f => f.id === id));
+      setIsWatchlist(watch.some(w => w.id === id));
     } catch (e) { console.error(e); }
   };
 
   const fetchTMDB = async () => {
     try {
       const tmdbId = parseInt(id as string);
-      console.log('>>> tmdbId:', tmdbId, 'mediaType:', mediaType);
       if (isNaN(tmdbId)) return;
-      const [detail, credits, similar, video] = await Promise.all([
+
+      const [detail, credits, similar, video, provRes] = await Promise.all([
         getDetail(tmdbId, mediaType),
         getCredits(tmdbId, mediaType),
         getSimilar(tmdbId, mediaType),
         getVideos(tmdbId, mediaType),
+        fetch(`https://api.themoviedb.org/3/${mediaType}/${tmdbId}/watch/providers?api_key=${API_KEY}`),
       ]);
-      console.log('>>> credits length:', credits?.length);
-      console.log('>>> similar length:', similar?.length);
-      console.log('>>> video:', video);
-      console.log('>>> detail.overview:', detail?.overview?.slice(0, 50));
-      console.log('>>> API KEY:', process.env.EXPO_PUBLIC_TMDB_API_KEY);
-      if (detail?.overview) setOverview(detail.overview);
-      if (detail?.vote_average) setVoteAverage(detail.vote_average.toFixed(1));
+
+      if (detail?.overview)                  setOverview(detail.overview);
+      if (detail?.vote_average)              setVoteAverage(detail.vote_average.toFixed(1));
       if (isTV && detail?.number_of_seasons) setSeasons(detail.number_of_seasons);
-      if (credits?.length) setActors(credits.slice(0, 8));
-      if (similar?.length) setSimilarItems(similar.slice(0, 6).map((m: any) => tmdbToItem(m, mediaType)) as SimilarItem[]);
+      if (detail?.backdrop_path)             setHeroImg(`https://image.tmdb.org/t/p/w1280${detail.backdrop_path}`);
+      if (credits?.length)                   setActors(credits.slice(0, 10));
+      if (similar?.length)                   setSimilarItems(
+        similar.slice(0, 10).map((m: any) => tmdbToItem(m, mediaType)) as SimilarItem[]
+      );
       if (video) setTrailerKey(video);
-    } catch (e) {
-      console.error('TMDB fetch error:', e);
-    }
+
+      // Watch providers — TR bölgesi önce, yoksa US
+      const provData = await provRes.json();
+      const region   = provData?.results?.TR ?? provData?.results?.US ?? null;
+      if (region) {
+        setProviderLink(region.link || '');
+        const seen = new Set<number>();
+        const all: WatchProvider[] = [
+          ...(region.flatrate ?? []),
+          ...(region.rent     ?? []),
+          ...(region.buy      ?? []),
+        ].filter(p => {
+          if (seen.has(p.provider_id)) return false;
+          seen.add(p.provider_id); return true;
+        });
+        setProviders(all.slice(0, 8));
+      }
+    } catch (e) { console.error('TMDB fetch error:', e); }
   };
 
   const toggleFavorite = async () => {
     try {
-      const favData = await AsyncStorage.getItem('favorites_data');
-      let favs: FavoriteItem[] = favData ? JSON.parse(favData) : [];
+      const raw  = await AsyncStorage.getItem('favorites_data');
+      let favs: FavoriteItem[] = raw ? JSON.parse(raw) : [];
       if (isFavorite) {
-        favs = favs.filter((f) => f.id !== id);
+        favs = favs.filter(f => f.id !== id);
         setIsFavorite(false);
         showToast(t('detail.removeFromFavorites'));
       } else {
-        favs = [{
-          id: id as string, title: title as string, trailer: trailerKey,
-          year: year as string, type: type as string, img: img as string,
-          userRating: 0, mediaType,
-        }, ...favs];
+        favs = [{ id: id as string, title: title as string, trailer: trailerKey,
+          year: year as string, type: type as string,
+          img: img as string, userRating: 0, mediaType }, ...favs];
         setIsFavorite(true);
         showToast(t('detail.addToFavorites'));
       }
@@ -148,17 +185,16 @@ export default function DetailsScreen() {
 
   const toggleWatchlist = async () => {
     try {
-      const watchData = await AsyncStorage.getItem('watchlist_data');
-      let watch: WatchlistItem[] = watchData ? JSON.parse(watchData) : [];
+      const raw  = await AsyncStorage.getItem('watchlist_data');
+      let watch: WatchlistItem[] = raw ? JSON.parse(raw) : [];
       if (isWatchlist) {
-        watch = watch.filter((w) => w.id !== id);
+        watch = watch.filter(w => w.id !== id);
         setIsWatchlist(false);
         showToast(t('detail.removeFromWatchlist'));
       } else {
-        watch = [{
-          id: id as string, title: title as string, trailer: trailerKey,
-          year: year as string, type: type as string, img: img as string, mediaType,
-        }, ...watch];
+        watch = [{ id: id as string, title: title as string, trailer: trailerKey,
+          year: year as string, type: type as string,
+          img: img as string, mediaType }, ...watch];
         setIsWatchlist(true);
         showToast(t('detail.addToWatchlist'));
       }
@@ -166,220 +202,367 @@ export default function DetailsScreen() {
     } catch (e) { console.error(e); }
   };
 
+  const openProvider = (link: string) => {
+    const url = link || providerLink ||
+      `https://www.justwatch.com/tr/search?q=${encodeURIComponent(title as string)}`;
+    Linking.openURL(url).catch(() =>
+      Alert.alert('Hata', 'Bağlantı açılamadı.')
+    );
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <View style={{ flex: 1, backgroundColor: C.bg }}>
+      <ScrollView showsVerticalScrollIndicator={false}>
 
-      {/* HEADER */}
-      <View style={styles.headerBar}>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#DB7093" />
-          <Text style={styles.backText}>{t('common.back')}</Text>
-        </Pressable>
-        <Text style={styles.headerTitle}>
-          {isTV ? `📺 ${t('detail.seriesDetail')}` : `🎬 ${t('detail.movieDetail')}`}
-        </Text>
-      </View>
-
-      {/* FRAGMAN */}
-      <View style={styles.videoContainer}>
-        {trailerKey ? (
-          <YoutubePlayer
-            height={250}
-            play={playing}
-            videoId={trailerKey}
-            onChangeState={(state: string) => { if (state === 'ended') setPlaying(false); }}
+        {/* ── Hero backdrop ────────────────────────────────────────────────── */}
+        <View style={styles.heroWrap}>
+          <Image
+            source={{ uri: heroImg }}
+            style={styles.heroImage}
+            resizeMode="cover"
           />
-        ) : (
-          <View style={styles.noTrailer}>
-            <Ionicons name="film-outline" size={40} color="#FFD1DC" />
-            <Text style={styles.noTrailerText}>{t('detail.trailerLoading')}</Text>
-          </View>
-        )}
-      </View>
+          <LinearGradient
+            colors={['rgba(20,20,20,0.15)', C.bg]}
+            style={styles.heroGradient}
+          />
 
-      {loading ? (
-        <View style={{ padding: 20, gap: 8 }}>
-          <SkeletonBox width="70%" height={28} opacity={skeletonOpacity} />
-          <SkeletonBox width="40%" height={16} opacity={skeletonOpacity} />
-          <SkeletonBox width="100%" height={14} opacity={skeletonOpacity} />
-          <SkeletonBox width="90%"  height={14} opacity={skeletonOpacity} />
-          <SkeletonBox width="80%"  height={14} opacity={skeletonOpacity} />
-          <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
-            {[1, 2, 3, 4].map((i) => (
-              <View key={i} style={{ alignItems: 'center', gap: 6 }}>
-                <SkeletonBox width={62} height={62} borderRadius={31} opacity={skeletonOpacity} />
-                <SkeletonBox width={60} height={10} opacity={skeletonOpacity} />
-              </View>
-            ))}
-          </View>
-          <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
-            {[1, 2, 3].map((i) => (
-              <SkeletonBox key={i} width={110} height={150} borderRadius={16} opacity={skeletonOpacity} />
-            ))}
-          </View>
-        </View>
-      ) : (
-        <>
-          {/* BİLGİ KARTI */}
-          <View style={styles.infoCard}>
-            <View style={styles.titleRow}>
-              <Text style={styles.titleText}>{title}</Text>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{year}</Text>
-              </View>
-            </View>
+          {/* Geri */}
+          <Pressable style={styles.backBtn} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={22} color={C.text} />
+          </Pressable>
 
-            <View style={styles.metaRow}>
-              <Text style={styles.genreText}>🎭 {type}</Text>
-              <View style={styles.metaRight}>
-                {voteAverage ? (
-                  <View style={styles.imdbBadge}>
-                    <Ionicons name="star" size={12} color="#f39c12" />
-                    <Text style={styles.imdbText}>{voteAverage}</Text>
-                  </View>
-                ) : null}
-                {isTV && seasons > 0 ? (
-                  <View style={styles.seasonBadge}>
-                    <Text style={styles.seasonText}>📺 {seasons} {t('detail.seasons')}</Text>
-                  </View>
-                ) : null}
-              </View>
-            </View>
-
-            <View style={styles.divider} />
-            <Text style={styles.descriptionText}>
-              {overview || t('detail.noOverview')}
+          {/* Tür etiketi */}
+          <View style={styles.typePill}>
+            <Text style={styles.typePillText}>
+              {isTV ? '📺 Dizi' : '🎬 Film'}
             </Text>
           </View>
+        </View>
 
-          {/* FAVORİ & WATCHLIST */}
-          <View style={styles.actionRow}>
+        {/* ── Başlık + meta ─────────────────────────────────────────────────── */}
+        <View style={styles.titleSection}>
+          <Text style={styles.titleText}>{title}</Text>
+          <View style={styles.metaRow}>
+            {voteAverage ? (
+              <View style={styles.metaPill}>
+                <Ionicons name="star" size={11} color="#f39c12" />
+                <Text style={styles.metaPillText}>{voteAverage}</Text>
+              </View>
+            ) : null}
+            <View style={styles.metaPill}>
+              <Text style={styles.metaPillText}>{year}</Text>
+            </View>
+            <View style={styles.metaPill}>
+              <Text style={styles.metaPillText}>{type}</Text>
+            </View>
+            {isTV && seasons > 0 && (
+              <View style={styles.metaPill}>
+                <Text style={styles.metaPillText}>{seasons} {t('detail.seasons')}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* ── Aksiyon butonları ─────────────────────────────────────────────── */}
+        <View style={styles.actionSection}>
+          {/* Fragman */}
+          {trailerKey ? (
+            <TouchableOpacity
+              style={styles.playBtn}
+              onPress={() => { setPlaying(true); setTrailerModal(true); }}
+            >
+              <Ionicons name="play" size={18} color="black" />
+              <Text style={styles.playBtnText}>▶ Fragmanı İzle</Text>
+            </TouchableOpacity>
+          ) : null}
+
+          <View style={styles.secondaryBtns}>
+            {/* Favorilere */}
             <Pressable
-              style={[styles.actionBtn, isFavorite && styles.actionBtnActive]}
+              style={[styles.secondaryBtn, isFavorite && styles.secondaryBtnActive]}
               onPress={toggleFavorite}
             >
-              <Ionicons name={isFavorite ? 'heart' : 'heart-outline'} size={22}
-                color={isFavorite ? 'white' : '#DB7093'} />
-              <Text style={[styles.actionBtnText, isFavorite && styles.actionBtnTextActive]}>
+              <Ionicons
+                name={isFavorite ? 'heart' : 'heart-outline'}
+                size={20}
+                color={isFavorite ? 'white' : C.textSub}
+              />
+              <Text style={[styles.secondaryBtnText, isFavorite && { color: 'white' }]}>
                 {isFavorite ? t('detail.inFavorites') : t('detail.addToFavorites')}
               </Text>
             </Pressable>
+
+            {/* İzleme Listesi */}
             <Pressable
-              style={[styles.actionBtn, isWatchlist && styles.actionBtnActive]}
+              style={[styles.secondaryBtn, isWatchlist && styles.secondaryBtnWatchlist]}
               onPress={toggleWatchlist}
             >
-              <Ionicons name={isWatchlist ? 'bookmark' : 'bookmark-outline'} size={22}
-                color={isWatchlist ? 'white' : '#DB7093'} />
-              <Text style={[styles.actionBtnText, isWatchlist && styles.actionBtnTextActive]}>
+              <Ionicons
+                name={isWatchlist ? 'bookmark' : 'bookmark-outline'}
+                size={20}
+                color={isWatchlist ? 'white' : C.textSub}
+              />
+              <Text style={[styles.secondaryBtnText, isWatchlist && { color: 'white' }]}>
                 {isWatchlist ? t('detail.inWatchlist') : t('detail.addToWatchlist')}
               </Text>
             </Pressable>
           </View>
+        </View>
 
-          {/* OYUNCULAR */}
-          {actors.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>🎬 {t('detail.cast')}</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={styles.actorsRow}>
-                  {actors.map((actor) => (
-                    <View key={actor.id} style={styles.actorCard}>
-                      <Image
-                        source={{ uri: actor.profile_path ? TMDB_IMAGE(actor.profile_path) : `https://i.pravatar.cc/80?u=${actor.id}` }}
-                        style={styles.actorAvatar}
-                      />
-                      <Text style={styles.actorName} numberOfLines={2}>{actor.name}</Text>
-                      <Text style={styles.actorRole} numberOfLines={1}>{actor.character}</Text>
-                    </View>
-                  ))}
+        {loading ? (
+          /* ── Skeleton ──────────────────────────────────────────────────── */
+          <View style={{ padding: 20, gap: 8 }}>
+            <SkeletonBox width="100%" height={14} opacity={skeletonOpacity} />
+            <SkeletonBox width="90%"  height={14} opacity={skeletonOpacity} />
+            <SkeletonBox width="80%"  height={14} opacity={skeletonOpacity} />
+            <View style={{ flexDirection: 'row', gap: 12, marginTop: 16 }}>
+              {[1, 2, 3, 4].map(i => (
+                <View key={i} style={{ alignItems: 'center', gap: 6 }}>
+                  <SkeletonBox width={60} height={60} borderRadius={30} opacity={skeletonOpacity} />
+                  <SkeletonBox width={56} height={10} opacity={skeletonOpacity} />
                 </View>
-              </ScrollView>
+              ))}
             </View>
-          )}
+          </View>
+        ) : (
+          <>
+            {/* ── Özet ───────────────────────────────────────────────────── */}
+            {overview ? (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>{t('detail.overview') ?? 'Özet'}</Text>
+                <Text style={styles.overviewText}>{overview}</Text>
+              </View>
+            ) : null}
 
-          {/* BENZERİ İÇERİKLER */}
-          {similarItems.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>
-                {isTV ? `📺 ${t('detail.similarSeries')}` : `🎞️ ${t('detail.similarMovies')}`}
-              </Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={styles.similarRow}>
-                  {similarItems.map((item) => (
+            {/* ── Nereden İzlenir ────────────────────────────────────────── */}
+            {providers.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>🎬 Nereden İzlenir?</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View style={styles.providersRow}>
+                    {providers.map(p => (
+                      <TouchableOpacity
+                        key={p.provider_id}
+                        style={styles.providerCard}
+                        onPress={() => openProvider(providerLink)}
+                        accessibilityRole="button"
+                        accessibilityLabel={p.provider_name}
+                      >
+                        <Image
+                          source={{ uri: `https://image.tmdb.org/t/p/original${p.logo_path}` }}
+                          style={styles.providerLogo}
+                        />
+                        <Text style={styles.providerName} numberOfLines={2}>
+                          {p.provider_name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+
+                    {/* JustWatch fallback */}
                     <TouchableOpacity
-                      key={item.id}
-                      style={styles.similarCard}
-                      onPress={() =>
-                        router.replace({
-                          pathname: '/details/[id]',
-                          params: {
-                            id: item.id, title: item.title, trailer: item.trailer,
-                            year: item.year, type: item.type, img: item.img,
-                            mediaType: item.mediaType,
-                          },
-                        })
-                      }
+                      style={[styles.providerCard, styles.justWatchCard]}
+                      onPress={() => openProvider('')}
                     >
-                      <Image source={{ uri: item.img }} style={styles.similarPoster} />
-                      <View style={styles.similarImdb}>
-                        <Text style={styles.similarImdbText}>⭐ {item.imdb}</Text>
-                      </View>
-                      <Text style={styles.similarTitle} numberOfLines={2}>{item.title}</Text>
-                      <Text style={styles.similarYear}>{item.year}</Text>
+                      <Ionicons name="search" size={26} color={C.accent} />
+                      <Text style={styles.providerName}>Tüm{'\n'}Platformlar</Text>
                     </TouchableOpacity>
-                  ))}
-                </View>
-              </ScrollView>
+                  </View>
+                </ScrollView>
+                <Text style={styles.providerNote}>
+                  * Platform bilgileri JustWatch & TMDB kaynaklıdır
+                </Text>
+              </View>
+            )}
+
+            {providers.length === 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>🎬 Nereden İzlenir?</Text>
+                <TouchableOpacity
+                  style={styles.justWatchBtn}
+                  onPress={() => openProvider('')}
+                >
+                  <Ionicons name="search-outline" size={18} color={C.text} />
+                  <Text style={styles.justWatchBtnText}>
+                    JustWatch'ta Ara — {title}
+                  </Text>
+                  <Ionicons name="open-outline" size={16} color={C.textMuted} />
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* ── Oyuncular ──────────────────────────────────────────────── */}
+            {actors.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>🎭 {t('detail.cast')}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View style={styles.castRow}>
+                    {actors.map(actor => (
+                      <View key={actor.id} style={styles.actorCard}>
+                        <Image
+                          source={{
+                            uri: actor.profile_path
+                              ? TMDB_IMAGE(actor.profile_path)
+                              : `https://i.pravatar.cc/80?u=${actor.id}`,
+                          }}
+                          style={styles.actorAvatar}
+                        />
+                        <Text style={styles.actorName} numberOfLines={2}>{actor.name}</Text>
+                        <Text style={styles.actorRole} numberOfLines={1}>{actor.character}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+            )}
+
+            {/* ── Benzer İçerikler ───────────────────────────────────────── */}
+            {similarItems.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>
+                  {isTV ? `📺 ${t('detail.similarSeries')}` : `🎞️ ${t('detail.similarMovies')}`}
+                </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View style={styles.similarRow}>
+                    {similarItems.map(item => (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={styles.similarCard}
+                        onPress={() =>
+                          router.replace({
+                            pathname: '/details/[id]',
+                            params: {
+                              id: item.id, title: item.title, trailer: item.trailer,
+                              year: item.year, type: item.type, img: item.img,
+                              mediaType: item.mediaType,
+                            },
+                          })
+                        }
+                      >
+                        <Image source={{ uri: item.img }} style={styles.similarPoster} />
+                        <View style={styles.similarImdb}>
+                          <Text style={styles.similarImdbText}>⭐ {item.imdb}</Text>
+                        </View>
+                        <Text style={styles.similarTitle} numberOfLines={2}>{item.title}</Text>
+                        <Text style={styles.similarYear}>{item.year}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+            )}
+
+            <View style={{ height: 50 }} />
+          </>
+        )}
+      </ScrollView>
+
+      {/* ── Fragman Modal (fullscreen) ────────────────────────────────────── */}
+      <Modal
+        visible={trailerModal}
+        animationType="fade"
+        onRequestClose={() => { setPlaying(false); setTrailerModal(false); }}
+      >
+        <View style={styles.trailerModal}>
+          <Pressable
+            style={styles.trailerClose}
+            onPress={() => { setPlaying(false); setTrailerModal(false); }}
+          >
+            <Ionicons name="close-circle" size={36} color="white" />
+          </Pressable>
+          {trailerKey ? (
+            <YoutubePlayer
+              height={300}
+              play={playing}
+              videoId={trailerKey}
+              onChangeState={(state: string) => {
+                if (state === 'ended') { setPlaying(false); setTrailerModal(false); }
+              }}
+            />
+          ) : (
+            <View style={styles.noTrailer}>
+              <Ionicons name="film-outline" size={48} color={C.textMuted} />
+              <Text style={{ color: C.textMuted, marginTop: 12 }}>
+                {t('detail.trailerLoading')}
+              </Text>
             </View>
           )}
-
-          <View style={{ height: 40 }} />
-        </>
-      )}
-    </ScrollView>
+          <Text style={styles.trailerTitle}>{title}</Text>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container:       { flex: 1, backgroundColor: '#FFF5F7' },
-  headerBar:       { paddingTop: 50, paddingHorizontal: 15, paddingBottom: 15, backgroundColor: 'white', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headerTitle:     { fontSize: 18, fontWeight: 'bold', color: '#DB7093' },
-  backButton:      { flexDirection: 'row', alignItems: 'center' },
-  backText:        { color: '#DB7093', fontWeight: 'bold', marginLeft: 5 },
-  videoContainer:  { width: '100%', backgroundColor: '#000' },
-  noTrailer:       { height: 200, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1a1a1a' },
-  noTrailerText:   { color: '#FFD1DC', marginTop: 8, fontSize: 13 },
-  infoCard:        { margin: 16, padding: 20, backgroundColor: 'white', borderRadius: 25, elevation: 3, shadowColor: '#DB7093', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 6 },
-  titleRow:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 },
-  titleText:       { fontSize: 22, fontWeight: 'bold', color: '#4A4A4A', flex: 1, lineHeight: 28 },
-  badge:           { backgroundColor: '#DB7093', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
-  badgeText:       { color: 'white', fontWeight: 'bold', fontSize: 12 },
-  metaRow:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginVertical: 8 },
-  metaRight:       { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  genreText:       { fontSize: 15, color: '#DB7093' },
-  imdbBadge:       { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FFF5F7', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, borderWidth: 1, borderColor: '#FFD1DC' },
-  imdbText:        { fontSize: 13, color: '#f39c12', fontWeight: 'bold' },
-  seasonBadge:     { backgroundColor: '#FFF5F7', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, borderWidth: 1, borderColor: '#FFD1DC' },
-  seasonText:      { fontSize: 12, color: '#DB7093', fontWeight: '600' },
-  divider:         { height: 1, backgroundColor: '#FFE4E1', marginVertical: 10 },
-  descriptionText: { fontSize: 14, color: '#777', lineHeight: 22 },
-  actionRow:       { flexDirection: 'row', gap: 12, marginHorizontal: 16, marginBottom: 8 },
-  actionBtn:       { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 14, borderRadius: 16, borderWidth: 1.5, borderColor: '#DB7093', backgroundColor: 'white' },
-  actionBtnActive:     { backgroundColor: '#DB7093', borderColor: '#DB7093' },
-  actionBtnText:       { color: '#DB7093', fontWeight: 'bold', fontSize: 13 },
-  actionBtnTextActive: { color: 'white' },
-  section:         { marginTop: 8, marginBottom: 4 },
-  sectionTitle:    { fontSize: 17, fontWeight: 'bold', color: '#DB7093', marginLeft: 16, marginBottom: 12 },
-  actorsRow:       { flexDirection: 'row', paddingHorizontal: 16, gap: 14 },
-  actorCard:       { alignItems: 'center', width: 72 },
-  actorAvatar:     { width: 62, height: 62, borderRadius: 31, borderWidth: 2, borderColor: '#FFD1DC', backgroundColor: '#FFE0EB' },
-  actorName:       { fontSize: 11, fontWeight: '600', color: '#4A4A4A', marginTop: 6, textAlign: 'center' },
-  actorRole:       { fontSize: 10, color: '#DB7093', textAlign: 'center', fontStyle: 'italic' },
-  similarRow:      { flexDirection: 'row', paddingHorizontal: 16, gap: 12, paddingBottom: 8 },
-  similarCard:     { width: 110, backgroundColor: 'white', borderRadius: 16, overflow: 'hidden', elevation: 3 },
-  similarPoster:   { width: '100%', height: 150, backgroundColor: '#FFE0EB', resizeMode: 'cover' },
-  similarImdb:     { position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(255,255,255,0.9)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
-  similarImdbText: { fontSize: 10, color: '#DB7093', fontWeight: 'bold' },
-  similarTitle:    { fontSize: 11, fontWeight: 'bold', color: '#4A4A4A', padding: 8, paddingBottom: 2 },
-  similarYear:     { fontSize: 10, color: '#aaa', paddingHorizontal: 8, paddingBottom: 8 },
+  // Hero
+  heroWrap:    { position: 'relative', height: 280 },
+  heroImage:   { width: '100%', height: 280, backgroundColor: C.surface },
+  heroGradient:{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 160 },
+  backBtn:     { position: 'absolute', top: 48, left: 16, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: 8 },
+  typePill:    { position: 'absolute', top: 48, right: 16, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 },
+  typePillText:{ color: 'white', fontSize: 12, fontWeight: '700' },
+
+  // Başlık
+  titleSection: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
+  titleText:    { color: C.text, fontSize: 24, fontWeight: 'bold', lineHeight: 30, marginBottom: 10 },
+  metaRow:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  metaPill:     { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.surfaceHigh, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  metaPillText: { color: C.textSub, fontSize: 12, fontWeight: '600' },
+
+  // Aksiyon
+  actionSection:   { paddingHorizontal: 16, paddingVertical: 14, gap: 10 },
+  playBtn:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: C.text, paddingVertical: 13, borderRadius: Radius.sm },
+  playBtnText:     { color: 'black', fontWeight: 'bold', fontSize: 15 },
+  secondaryBtns:   { flexDirection: 'row', gap: 10 },
+  secondaryBtn:    { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.surfaceHigh, paddingVertical: 11, borderRadius: Radius.sm, borderWidth: 1, borderColor: C.border },
+  secondaryBtnActive:    { backgroundColor: C.accent, borderColor: C.accent },
+  secondaryBtnWatchlist: { backgroundColor: '#1a6b8a', borderColor: '#1a6b8a' },
+  secondaryBtnText:      { color: C.textSub, fontSize: 12, fontWeight: '600' },
+
+  // Section
+  section:      { marginTop: 8, marginBottom: 4, paddingHorizontal: 16 },
+  sectionTitle: { color: C.text, fontSize: 16, fontWeight: 'bold', marginBottom: 12 },
+  overviewText: { color: C.textSub, fontSize: 14, lineHeight: 22 },
+
+  // Watch providers
+  providersRow: { flexDirection: 'row', gap: 12, paddingBottom: 8 },
+  providerCard: {
+    alignItems: 'center', width: 80,
+    backgroundColor: C.surface, borderRadius: Radius.md,
+    padding: 10, borderWidth: 1, borderColor: C.border,
+  },
+  justWatchCard: { borderColor: C.accent + '60', borderWidth: 1.5 },
+  providerLogo:  { width: 48, height: 48, borderRadius: Radius.sm, backgroundColor: C.surfaceHigh, marginBottom: 6 },
+  providerName:  { color: C.textSub, fontSize: 10, textAlign: 'center', lineHeight: 13 },
+  providerNote:  { color: C.textMuted, fontSize: 10, marginTop: 8, fontStyle: 'italic' },
+  justWatchBtn:  {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: C.surface, padding: 14, borderRadius: Radius.md,
+    borderWidth: 1, borderColor: C.border,
+  },
+  justWatchBtnText: { flex: 1, color: C.text, fontSize: 13, fontWeight: '600' },
+
+  // Cast
+  castRow:     { flexDirection: 'row', gap: 14, paddingBottom: 8 },
+  actorCard:   { alignItems: 'center', width: 72 },
+  actorAvatar: { width: 62, height: 62, borderRadius: 31, backgroundColor: C.surfaceHigh, borderWidth: 2, borderColor: C.border },
+  actorName:   { color: C.text, fontSize: 11, fontWeight: '600', marginTop: 6, textAlign: 'center' },
+  actorRole:   { color: C.textMuted, fontSize: 10, textAlign: 'center', fontStyle: 'italic' },
+
+  // Similar
+  similarRow:     { flexDirection: 'row', gap: 12, paddingBottom: 8 },
+  similarCard:    { width: 120, backgroundColor: C.surface, borderRadius: Radius.md, overflow: 'hidden' },
+  similarPoster:  { width: '100%', height: 170, backgroundColor: C.surfaceHigh, resizeMode: 'cover' },
+  similarImdb:    { position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(0,0,0,0.75)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
+  similarImdbText:{ fontSize: 10, color: 'white', fontWeight: 'bold' },
+  similarTitle:   { fontSize: 11, fontWeight: 'bold', color: C.text, padding: 8, paddingBottom: 2 },
+  similarYear:    { fontSize: 10, color: C.textMuted, paddingHorizontal: 8, paddingBottom: 8 },
+
+  // Trailer modal
+  trailerModal: { flex: 1, backgroundColor: '#000', justifyContent: 'center' },
+  trailerClose: { position: 'absolute', top: 48, right: 16, zIndex: 10 },
+  trailerTitle: { color: 'white', textAlign: 'center', marginTop: 20, fontSize: 15, fontWeight: 'bold', paddingHorizontal: 20 },
+  noTrailer:    { alignItems: 'center', justifyContent: 'center', flex: 1 },
 });

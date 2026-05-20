@@ -1,5 +1,6 @@
 // locales/types.ts
 export interface Translations {
+  
   common: {
     search: string; loading: string; error: string; back: string;
     close: string; save: string; cancel: string; delete: string;
@@ -12,8 +13,9 @@ export interface Translations {
     favorites: string; watchlist: string; notifications: string; sensors: string;
   };
   drawer: {
-    home: string; appTitle: string; nearbyCinemas: string; cinemas: string;
+    home: string; appTitle: string; nearbyCinemas: string; cinemas: string; settings: string;
   };
+  settings: { language: string; display: string; }
   media: {
     topRated: string; nowPlaying: string; popular: string; upcoming: string;
     onTheAir: string; movie: string; series: string; shakeHint: string;
@@ -25,6 +27,8 @@ export interface Translations {
     movieName: string; imageUrl: string; youtubeLink: string;
     year: string; genre: string; seeDetails: string; suggestAgain: string;
     shakeSubtitle: string; seriesLoadError: string; seriesName: string;
+    swipeHintDelete: string;
+   swipeHintRate: string;
   };
   genres: {
     all: string; action: string; comedy: string; drama: string;
@@ -57,6 +61,7 @@ export interface Translations {
     shareWatched: string; sharePending: string;
     removeTitle: string; removeConfirm: string; remove: string;
     emptyListMsg: string; smsTitle: string; searchPlaceholder: string;
+    sortCustom: string; dragHint: string;
   };
   map: {
   title: string; nearest: string; findNearest: string; getDirections: string;
@@ -93,6 +98,7 @@ export interface Translations {
     removeButton: string; searchInput: string; closeModal: string;
     playTrailer: string; cinemaMode: string; batteryLevel: string;
     networkStatus: string; mapMarker: string; sortButton: string;
-    pageNumber: string; starRating: string;
+    pageNumber: string; starRating: string; cardSwipeHint: string;
+    dragHandle: string;
   };
 }

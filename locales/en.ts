@@ -15,9 +15,10 @@ const en: Translations = {
     favorites: 'Favorites', watchlist: 'Watchlist',
     notifications: 'Notifications', sensors: 'Sensors',
   },
+  settings: { language: 'Language', display: 'Display' } ,
   drawer: {
     home: 'Home', appTitle: 'Movie & Series',
-    nearbyCinemas: 'Nearby Cinemas', cinemas: 'Cinema Map',
+    nearbyCinemas: 'Nearby Cinemas', cinemas: 'Cinema Map', settings: 'Settings'
   },
   media: {
     topRated: 'Top Rated', nowPlaying: 'Now Playing', popular: 'Popular',
@@ -37,7 +38,8 @@ const en: Translations = {
     youtubeLink: 'YouTube Link', year: 'Year', genre: 'Genre',
     seeDetails: 'See Details', suggestAgain: 'Suggest Again',
     shakeSubtitle: 'We picked this for you 🎲',seriesLoadError: 'Could not load series',
-seriesName: 'Series name',
+seriesName: 'Series name',swipeHintDelete: 'Swipe left to delete',
+  swipeHintRate: 'Swipe right to rate',
   },
   genres: {
     all: 'All', action: 'Action', comedy: 'Comedy', drama: 'Drama',
@@ -82,6 +84,8 @@ seriesName: 'Series name',
     emptyListMsg: 'Watchlist is empty.',
     smsTitle: 'My Watchlist',
     searchPlaceholder: 'Search watchlist...',
+    sortCustom: 'Manual',
+  dragHint: 'Long press the handle to drag',
   },
   map: {
     title: 'Cinema Map', nearest: 'Nearest Cinema',
@@ -143,7 +147,10 @@ seriesName: 'Series name',
     playTrailer: 'Play trailer', cinemaMode: 'Toggle cinema mode',
     batteryLevel: 'Battery level', networkStatus: 'Network connection status',
     mapMarker: 'Cinema location', sortButton: 'Sort options',
-    pageNumber: 'Page number', starRating: 'Star rating',
+    pageNumber: 'Page number', starRating: 'Star rating',  cardSwipeHint: 'Swipe right to rate, swipe left to delete',
+      dragHandle: 'Drag handle',
+
+
   },
 };
 
