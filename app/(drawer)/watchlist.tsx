@@ -42,27 +42,45 @@ export default function WatchlistScreen() {
     useMediaStorage('watchlist_data');
 
   const [searchQuery, setSearchQuery]         = useState('');
-  const [sortKey, setSortKey]                 = useState<SortKey>('addedAt');
+  // ── Default olarak hiçbir sıralama seçili değil (null) ──
+  const [sortKey, setSortKey]                 = useState<SortKey | null>(null);
   const [ratingModal, setRatingModal]         = useState(false);
   const [selectedItem, setSelectedItem]       = useState<WatchlistItem | null>(null);
   const [showPendingOnly, setShowPendingOnly] = useState(false);
+  const [isEditMode, setIsEditMode]           = useState(false);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const filteredSorted = useMemo(() => {
     let list = searchItems(searchQuery, items) as WatchlistItem[];
     if (showPendingOnly) list = list.filter(i => !i.watched);
+    
+    // Düzenleme modu aktifse VEYA hiçbir filtre seçilmemişse el yapımı sırayı (customOrder) kullan
+    if (isEditMode || sortKey === null) {
+      return [...list].sort((a, b) => {
+        const orderA = a.customOrder ?? (a.addedAt ? new Date(a.addedAt).getTime() : 0);
+        const orderB = b.customOrder ?? (b.addedAt ? new Date(b.addedAt).getTime() : 0);
+        return orderA - orderB;
+      });
+    }
+
+    // Aktif bir filtre seçilmişse ona göre sırala
     return [...list].sort((a, b) => {
       switch (sortKey) {
         case 'title':  return a.title.localeCompare(b.title, 'tr');
         case 'year':   return b.year.localeCompare(a.year);
-        default:       return (b.addedAt || '').localeCompare(a.addedAt || '');
+        case 'addedAt': return (b.addedAt || '').localeCompare(a.addedAt || '');
+        default:       return 0;
       }
     });
-  }, [items, searchQuery, sortKey, showPendingOnly, searchItems]);
+  }, [items, searchQuery, sortKey, showPendingOnly, searchItems, isEditMode]);
 
   const handleSearch = (q: string) => setSearchQuery(q);
-  const handleSort   = (k: SortKey) => setSortKey(k);
+  
+  // ── Üstüne tekrar basınca aktifliği kaldıran yeni sıralama fonksiyonu ──
+  const handleSort = (k: SortKey) => {
+    setSortKey(prevKey => (prevKey === k ? null : k));
+  };
 
   const toggleWatched = async (item: WatchlistItem) => {
     await upsert({ ...item, watched: !item.watched } as any);
@@ -89,9 +107,11 @@ export default function WatchlistScreen() {
 
   const handleDragEnd = useCallback(
     async ({ data }: { data: WatchlistItem[] }) => {
+      // Sürükleme bittiğinde elemanların yeni sırasını kalıcı olarak kaydet
       for (let i = 0; i < data.length; i++) {
-        if (data[i].customOrder !== i)
+        if (data[i].customOrder !== i) {
           await upsert({ ...data[i], customOrder: i } as any);
+        }
       }
     },
     [upsert]
@@ -122,34 +142,53 @@ export default function WatchlistScreen() {
 
   const pendingCount = (items as WatchlistItem[]).filter(i => !i.watched).length;
 
-  // ── renderDraggable: uzun basınca sürükle (Spotify stili) ──────────────────
   const renderDraggable = useCallback(
     ({ item, drag, isActive }: RenderItemParams<WatchlistItem>) => (
       <ScaleDecorator>
-        <Pressable
-          onLongPress={drag}
-          delayLongPress={200}
-          style={isActive ? styles.draggingRow : undefined}
+        <TouchableOpacity
+          activeOpacity={0.95}
+          onLongPress={isEditMode ? drag : undefined}
+          delayLongPress={isEditMode ? 100 : 250}
+          style={[
+            isActive ? styles.draggingRow : undefined,
+            isEditMode && styles.editModeRow
+          ]}
         >
           <View style={item.watched ? styles.watchedWrap : undefined}>
-            <MediaCard
-              item={item}
-              swipeEnabled={!isActive}
-              rateSwipeEnabled={false}
-              onPress={() => router.push({
-                pathname: '/details/[id]',
-                params: {
-                  id: item.id, title: item.title, trailer: item.trailer,
-                  year: item.year, type: item.type, img: item.img,
-                },
-              })}
-              onRate={() => openRating(item)}
-              onRemove={() => confirmRemove(item)}
-              removeIcon="trash-outline"
-              removeColor={C.accent}
-            />
+            <View style={styles.cardRowContainer}>
+              {isEditMode && (
+                <View style={styles.dragHandle}>
+                  <Ionicons name="menu-outline" size={20} color={C.textMuted} />
+                </View>
+              )}
+              
+              <View style={{ flex: 1 }}>
+                <MediaCard
+                  item={item}
+                  swipeEnabled={!isEditMode && !isActive}
+                  rateSwipeEnabled={false}
+                  onPress={() => {
+                    if (!isActive && !isEditMode) {
+                      router.push({
+                        pathname: '/details/[id]',
+                        params: {
+                          id: item.id, title: item.title, trailer: item.trailer,
+                          year: item.year, type: item.type, img: item.img,
+                        },
+                      });
+                    }
+                  }}
+                  onRate={() => !isEditMode && openRating(item)}
+                  onRemove={() => !isEditMode && confirmRemove(item)}
+                  removeIcon="trash-outline"
+                  removeColor={C.accent}
+                />
+              </View>
+            </View>
+
             <Pressable
-              style={[styles.watchedBtn, item.watched && styles.watchedBtnDone]}
+              disabled={isEditMode}
+              style={[styles.watchedBtn, item.watched && styles.watchedBtnDone, isEditMode && { opacity: 0.5 }]}
               onPress={() => toggleWatched(item)}
             >
               <Ionicons
@@ -162,10 +201,10 @@ export default function WatchlistScreen() {
               </Text>
             </Pressable>
           </View>
-        </Pressable>
+        </TouchableOpacity>
       </ScaleDecorator>
     ),
-    [t]
+    [t, router, openRating, confirmRemove, toggleWatched, isEditMode]
   );
 
   if (error) return (
@@ -186,6 +225,7 @@ export default function WatchlistScreen() {
         <Ionicons name="search-outline" size={16} color={C.textMuted} />
         <TextInput
           style={styles.searchInput}
+          editable={!isEditMode}
           placeholder={t('watchlist.searchPlaceholder')}
           placeholderTextColor={C.textMuted}
           value={searchQuery}
@@ -204,11 +244,33 @@ export default function WatchlistScreen() {
         </Text>
       )}
 
-      {/* Sort + filter + SMS */}
+      {/* Sort + Düzenle + filter + SMS */}
       <View style={styles.controlRow}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
           <View style={styles.sortRow}>
-            {SORT_OPTIONS.map(opt => (
+            {/* Düzenle Butonu */}
+            <Pressable
+              style={[styles.editBtn, isEditMode && styles.editBtnActive]}
+              onPress={() => {
+                setIsEditMode(!isEditMode);
+                if (!isEditMode) {
+                  setSearchQuery(''); 
+                  setSortKey(null); // Düzenleme moduna girildiğinde aktif filtreleri temizle
+                }
+              }}
+            >
+              <Ionicons 
+                name={isEditMode ? "save-outline" : "swap-vertical-outline"} 
+                size={12} 
+                color="white" 
+              />
+              <Text style={styles.editBtnText}>
+                {isEditMode ? "Tamam" : "Düzenle"}
+              </Text>
+            </Pressable>
+
+            {/* Filtreler - Düzenleme modunda geçici olarak gizlenir */}
+            {!isEditMode && SORT_OPTIONS.map(opt => (
               <Pressable
                 key={opt.key}
                 style={[styles.sortBtn, sortKey === opt.key && styles.sortBtnActive]}
@@ -222,24 +284,28 @@ export default function WatchlistScreen() {
           </View>
         </ScrollView>
 
-        <Pressable
-          style={[styles.filterBtn, showPendingOnly && styles.filterBtnActive]}
-          onPress={() => setShowPendingOnly(p => !p)}
-        >
-          <Ionicons
-            name={showPendingOnly ? 'time' : 'time-outline'}
-            size={14}
-            color={showPendingOnly ? 'white' : C.textMuted}
-          />
-          <Text style={[styles.filterText, showPendingOnly && styles.filterTextActive]}>
-            ({pendingCount})
-          </Text>
-        </Pressable>
+        {!isEditMode && (
+          <>
+            <Pressable
+              style={[styles.filterBtn, showPendingOnly && styles.filterBtnActive]}
+              onPress={() => setShowPendingOnly(p => !p)}
+            >
+              <Ionicons
+                name={showPendingOnly ? 'time' : 'time-outline'}
+                size={14}
+                color={showPendingOnly ? 'white' : C.textMuted}
+              />
+              <Text style={[styles.filterText, showPendingOnly && styles.filterTextActive]}>
+                ({pendingCount})
+              </Text>
+            </Pressable>
 
-        <TouchableOpacity style={styles.smsBtn} onPress={sendWatchlistSMS}>
-          <Ionicons name="chatbubble-outline" size={15} color="white" />
-          <Text style={styles.smsBtnText}>SMS</Text>
-        </TouchableOpacity>
+            <TouchableOpacity style={styles.smsBtn} onPress={sendWatchlistSMS}>
+              <Ionicons name="chatbubble-outline" size={15} color="white" />
+              <Text style={styles.smsBtnText}>SMS</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
 
       {/* İçerik */}
@@ -272,7 +338,7 @@ export default function WatchlistScreen() {
             onDragEnd={handleDragEnd}
             contentContainerStyle={{ padding: 12, paddingBottom: 80 }}
             showsVerticalScrollIndicator={false}
-            activationDistance={8}
+            activationDistance={isEditMode ? 5 : 15}
           />
           <Text style={styles.pageInfo}>
             {filteredSorted.length} {t('favorites.smsContent')}
@@ -311,11 +377,19 @@ const styles = StyleSheet.create({
   resultCount:  { fontSize: 12, color: C.textMuted, paddingHorizontal: 16, marginBottom: 4 },
 
   controlRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingBottom: 8, gap: 6 },
-  sortRow:    { flexDirection: 'row', gap: 6 },
+  sortRow:    { flexDirection: 'row', gap: 6, alignItems: 'center' },
   sortBtn:        { paddingHorizontal: 9, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface },
   sortBtnActive:  { backgroundColor: C.accent, borderColor: C.accent },
   sortText:       { fontSize: 11, color: C.textSub },
   sortTextActive: { color: 'white', fontWeight: 'bold' },
+
+  editBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
+    backgroundColor: '#2c3e50', borderWidth: 1, borderColor: '#34495e'
+  },
+  editBtnActive: { backgroundColor: '#27ae60', borderColor: '#2cc771' },
+  editBtnText: { color: 'white', fontWeight: 'bold', fontSize: 11 },
 
   filterBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
@@ -333,9 +407,14 @@ const styles = StyleSheet.create({
   },
   smsBtnText: { color: 'white', fontWeight: 'bold', fontSize: 12 },
 
+  cardRowContainer: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  dragHandle: { paddingLeft: 4, paddingRight: 8, justifyContent: 'center', alignItems: 'center' },
+  editModeRow: { borderStyle: 'dashed', borderColor: C.border },
+
   draggingRow: {
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3, shadowRadius: 8, elevation: 8,
+    backgroundColor: C.surface, borderRadius: Radius.md
   },
 
   watchedWrap:     { opacity: 0.55 },
